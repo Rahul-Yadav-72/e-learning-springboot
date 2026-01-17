@@ -26,5 +26,7 @@ This is an E-Learning Management System built using Spring Boot.
 
 mvn spring-boot:run
 
-
+## 👤 Author
+Rahul Kumar Yadav  
+GitHub: https://github.com/Rahul-Yadav-72  
 
