@@ -38,4 +38,11 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
 
     // Student ID aur Course ID se dhundho (shortcut)
     Optional<Enrollment> findByStudentIdAndCourseId(Long studentId, Long courseId);
+    
+ // Teacher ke basis par enrollments find karne ke liye magic method
+    // Iska matlab hai: Enrollment -> Course -> Instructor (User)
+    List<Enrollment> findByCourse_Instructor(User instructor);
+ // Direct SQL query jo ek baar mein count nikal degi
+    @Query("SELECT COUNT(e) FROM Enrollment e WHERE e.course.instructor.id = :teacherId")
+    long countTotalStudentsByTeacherId(@Param("teacherId") Long teacherId);
 }

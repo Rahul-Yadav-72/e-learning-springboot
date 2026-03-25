@@ -24,29 +24,28 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
 
     List<Payment> findByPaidAtBetween(LocalDateTime start, LocalDateTime end);
 
-    // ← Fix: PaymentService mein call ho raha tha
-    Optional<Payment> findByUserAndCourseIdAndStatus(
-            User user, Long courseId, PaymentStatus status);
+    // ✅ CourseId use kar raha hai (Perfect!)
+    Optional<Payment> findByUserAndCourseIdAndStatus(User user, Long courseId, PaymentStatus status);
 
-    boolean existsByUserAndCourseIdAndStatus(
-            User user, Long courseId, PaymentStatus status);
+    boolean existsByUserAndCourseIdAndStatus(User user, Long courseId, PaymentStatus status);
 
     @Query("SELECT SUM(p.amount) FROM Payment p WHERE p.status = 'COMPLETED'")
     BigDecimal calculateTotalRevenue();
-
-    @Query("SELECT SUM(p.amount) FROM Payment p " +
-           "WHERE p.course.instructor.id = :teacherId " +
-           "AND p.status = 'COMPLETED'")
-    BigDecimal calculateRevenueByTeacher(@Param("teacherId") Long teacherId);
-
-    // ← Teacher ke payments
-    @Query("SELECT p FROM Payment p " +
-           "WHERE p.course.instructor.id = :teacherId " +
-           "AND p.status = 'COMPLETED'")
-    List<Payment> findByTeacherId(@Param("teacherId") Long teacherId);
 
     @Query("SELECT MONTH(p.paidAt), SUM(p.amount) FROM Payment p " +
            "WHERE p.status = 'COMPLETED' AND YEAR(p.paidAt) = :year " +
            "GROUP BY MONTH(p.paidAt)")
     List<Object[]> getMonthlyRevenue(@Param("year") int year);
+    
+ // ✅ 'teacher' ko wapas 'instructor' kar diya gaya hai
+    @Query("SELECT SUM(p.amount) FROM Payment p " +
+           "WHERE p.course.instructor.id = :teacherId " +
+           "AND p.status = 'COMPLETED'")
+    BigDecimal calculateRevenueByTeacher(@Param("teacherId") Long teacherId);
+
+    // ✅ Yahan bhi 'instructor' kar diya gaya hai
+    @Query("SELECT p FROM Payment p " +
+           "WHERE p.course.instructor.id = :teacherId " +
+           "AND p.status = 'COMPLETED'")
+    List<Payment> findByTeacherId(@Param("teacherId") Long teacherId);
 }

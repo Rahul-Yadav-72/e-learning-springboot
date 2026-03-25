@@ -9,7 +9,9 @@ import java.util.List;
 @Repository
 public interface QuizQuestionRepository extends JpaRepository<QuizQuestion, Long> {
 
-    List<QuizQuestion> findByQuizId(Long quizId);
-
-    long countByQuizId(Long quizId);
+    // Ye line Spring Boot ko batati hai ki Assignment ID se questions dhundhne hain
+    List<QuizQuestion> findByAssignmentId(Long assignmentId);
+    
+    // Agar future mein count chahiye ho toh:
+    long countByAssignmentId(Long assignmentId);
 }
