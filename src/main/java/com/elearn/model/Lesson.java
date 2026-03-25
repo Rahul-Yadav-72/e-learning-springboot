@@ -32,6 +32,21 @@ public class Lesson {
     @Column(nullable = false)
     @Builder.Default
     private Integer orderIndex = 0;
+    
+ // Lesson.java mein ye field add karein
+    @Column(length = 500)
+    private String pdfUrl;
+
+    // Agar aap Lombok use kar rahe hain toh @Data kaafi hai, 
+    // warna niche diye gaye Getter aur Setter manually add karein:
+
+    public String getPdfUrl() {
+        return pdfUrl;
+    }
+
+    public void setPdfUrl(String pdfUrl) {
+        this.pdfUrl = pdfUrl;
+    }
 
     private Integer durationMinutes;
 

@@ -26,22 +26,41 @@ public class Assignment {
     @Column(columnDefinition = "TEXT")
     private String description;
 
+    @Column(name = "due_date")
     private LocalDate dueDate;
 
     @Builder.Default
+    @Column(name = "max_marks")
     private Integer maxMarks = 100;
+
+    // --- Type field add kijiye (Important for Logic) ---
+    @Column(name = "assignment_type")
+    private String type; // "TASK" or "QUIZ"
 
     @ToString.Exclude
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "module_id", nullable = false)
-    private CourseModule module;           // Module → CourseModule
+    private CourseModule module;
 
     @ToString.Exclude
-    @OneToMany(mappedBy = "assignment", cascade = CascadeType.ALL,
-               fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "assignment", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @Builder.Default
     private List<AssignmentSubmission> submissions = new ArrayList<>();
 
     @CreationTimestamp
+    @Column(name = "created_at")
     private LocalDateTime createdAt;
+
+    // --- Eclipse Red Line Fix: Manual Getters ---
+    // Inhe add karne se JSP mein `${task.id}` ka error chala jayega
+    public Long getId() {
+        return this.id;
+    }
+    
+    @OneToMany(mappedBy = "assignment", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<QuizQuestion> questions = new ArrayList<>();
+
+    public String getTitle() {
+        return this.title;
+    }
 }

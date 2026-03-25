@@ -12,12 +12,12 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class CourseModule {     // ← "Module" se rename kiya
+public class CourseModule {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
+    
     @Column(nullable = false)
     private String title;
 
@@ -27,27 +27,31 @@ public class CourseModule {     // ← "Module" se rename kiya
     @Builder.Default
     private Integer orderIndex = 0;
 
+    // --- Relationships ---
+
     @ToString.Exclude
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "course_id", nullable = false)
     private Course course;
 
     @ToString.Exclude
-    @OneToMany(mappedBy = "module", cascade = CascadeType.ALL,
-               orphanRemoval = true, fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "module", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @OrderBy("orderIndex ASC")
     @Builder.Default
     private List<Lesson> lessons = new ArrayList<>();
 
+    // Assignments list yahan rakhi hai (Naye flow ke liye yehi kaafi hai)
     @ToString.Exclude
-    @OneToMany(mappedBy = "module", cascade = CascadeType.ALL,
-               fetch = FetchType.LAZY)
-    @Builder.Default
-    private List<Quiz> quizzes = new ArrayList<>();
-
-    @ToString.Exclude
-    @OneToMany(mappedBy = "module", cascade = CascadeType.ALL,
-               fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "module", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @Builder.Default
     private List<Assignment> assignments = new ArrayList<>();
+
+    // --- Manual Getters for Eclipse Fix ---
+    public Long getId() {
+        return this.id;
+    }
+
+    public String getTitle() {
+        return this.title;
+    }
 }

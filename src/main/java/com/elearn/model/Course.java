@@ -32,7 +32,7 @@ public class Course {
     @Column(columnDefinition = "TEXT")
     private String whatYoullLearn;
     
-    
+    // Purani Quiz list yahan se hata di gayi hai! ✅
 
     private String thumbnailUrl;
     private String previewVideoUrl;
@@ -89,17 +89,15 @@ public class Course {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
-    
- // Course.java mein sirf yeh method fix karo
- // Error: Review::getRating method reference kaam nahi karta tha
-
- public double getAverageRating() {
-     if (reviews == null || reviews.isEmpty()) return 0.0;
-     return reviews.stream()
-             .mapToDouble(r -> r.getRating())  // ← method ref ki jagah lambda
-             .average()
-             .orElse(0.0);
- }
+    // Course.java mein sirf yeh method fix karo
+    // Error: Review::getRating method reference kaam nahi karta tha
+    public double getAverageRating() {
+        if (reviews == null || reviews.isEmpty()) return 0.0;
+        return reviews.stream()
+                .mapToDouble(r -> r.getRating())  // ← method ref ki jagah lambda
+                .average()
+                .orElse(0.0);
+    }
 
     public int getTotalEnrollments() {
         return enrollments == null ? 0 : enrollments.size();
