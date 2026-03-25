@@ -3,7 +3,16 @@ package com.elearn.controller;
 import com.elearn.dto.UserRegistrationDto;
 import com.elearn.model.User;
 import com.elearn.service.UserService;
+
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+
+// ✅ Sahi Spring Security Imports
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
+
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -16,7 +25,6 @@ public class AuthController {
 
     private final UserService userService;
 
-    // Manual Constructor to solve Syntax/Lombok errors
     public AuthController(UserService userService) {
         this.userService = userService;
     }
@@ -47,6 +55,19 @@ public class AuthController {
             model.addAttribute("errorMsg", e.getMessage());
             return "auth/register";
         }
+    }
+    
+    // ✅ Custom Logout Method
+    @GetMapping("/logout")
+    public String customLogout(HttpServletRequest request, HttpServletResponse response) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        
+        if (auth != null) {
+            new SecurityContextLogoutHandler().logout(request, response, auth);
+        }
+        
+        // Sahi login page par bhej diya
+        return "redirect:/auth/login?logout";
     }
 
     @GetMapping("/verify-otp")

@@ -2,6 +2,7 @@ package com.elearn.controller;
 
 import com.elearn.model.Category;
 import com.elearn.model.Course;
+import com.elearn.model.CourseModule;
 import com.elearn.model.User;
 import com.elearn.service.*;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +24,8 @@ public class CourseController {
     private final EnrollmentService enrollmentService;
     private final ReviewService reviewService;
     private final UserService userService;
+    
+    private ModuleService moduleService;
 
     // ── Browse All Courses ──
     @GetMapping
@@ -48,6 +51,20 @@ public class CourseController {
             categoryService.getAllCategories());
 
         return "student/browse-courses";
+    }
+    
+    @GetMapping("/courses/{id}/modules")
+    public String showCourseBuilder(@PathVariable Long id, Model model) {
+        Course course = courseService.getCourseById(id);
+        List<CourseModule> modules = moduleService.getModulesByCourse(id);
+        
+        // --- FORCE LOAD ASSIGNMENTS (Ye line add karein) ---
+        modules.forEach(m -> m.getAssignments().size()); 
+        // --------------------------------------------------
+
+        model.addAttribute("course", course);
+        model.addAttribute("modules", modules);
+        return "teacher/course-builder"; 
     }
 
     // ── Course Detail Page ──
