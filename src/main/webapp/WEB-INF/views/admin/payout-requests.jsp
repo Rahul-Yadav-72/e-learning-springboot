@@ -7,7 +7,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manage Payments | E-Learn Admin</title>
+    <title>Payout Requests | E-Learn Admin</title>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -21,11 +21,10 @@
             --danger: #ef4444;
             --warning: #f59e0b;
             --border: rgba(255, 255, 255, 0.08);
-            --text-main: #f8fafc;
             --text-dim: #94a3b8;
         }
 
-        body { background-color: var(--bg-dark); color: var(--text-main); font-family: 'Plus Jakarta Sans', sans-serif; margin: 0; }
+        body { background-color: var(--bg-dark); color: white; font-family: 'Plus Jakarta Sans', sans-serif; margin: 0; }
         
         .portal-nav { background: rgba(7, 11, 20, 0.85); backdrop-filter: blur(12px); padding: 15px 40px; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 1000; }
         .sidebar { background: var(--surface); border-radius: 24px; padding: 24px; height: fit-content; border: 1px solid var(--border); }
@@ -35,25 +34,25 @@
 
         .content-card { background: var(--surface); border-radius: 24px; padding: 30px; border: 1px solid var(--border); box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
 
-        /* --- TABLE UI FIXES --- */
-        .custom-table { color: #1e293b; border-collapse: separate; border-spacing: 0 10px; margin-bottom: 0;}
-        .custom-table thead th { border: none; color: var(--text-dim); font-size: 0.75rem; text-transform: uppercase; padding: 0 15px 15px; letter-spacing: 1px;}
+        /* --- UI FIX: White Rows with Dark Text --- */
+        .custom-table { border-collapse: separate; border-spacing: 0 10px; margin-bottom: 0;}
+        .custom-table thead th { border: none; color: var(--text-dim); font-size: 0.75rem; text-transform: uppercase; padding: 0 15px 15px; }
         
-        /* Row ko bright (White) rakha hai taaki text dikhe */
-        .custom-table tbody tr { background: white !important; transition: 0.3s; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-        .custom-table td { border: none; padding: 15px; vertical-align: middle; border-bottom: 1px solid #f1f5f9;}
+        .custom-table tbody tr { background: white !important; transition: 0.3s; border-radius: 12px; }
+        .custom-table td { border: none; padding: 15px; vertical-align: middle; color: #1e293b; }
         .custom-table td:first-child { border-radius: 12px 0 0 12px; }
         .custom-table td:last-child { border-radius: 0 12px 12px 0; }
 
-        /* Student & Course Info Text Colors */
-        .student-name { color: #4f46e5 !important; font-weight: 800; font-size: 0.95rem; }
-        .student-email { color: #64748b; font-size: 0.8rem; }
-        .course-title { color: #1e293b; font-weight: 700; font-size: 0.9rem; }
-        .instructor-name { color: #8b5cf6; font-size: 0.75rem; font-weight: 600; }
-
-        .txn-id { font-family: monospace; font-size: 0.8rem; color: #4338ca; background: #e0e7ff; padding: 4px 8px; border-radius: 6px; font-weight: 600;}
-        .amount-text { font-weight: 800; font-size: 1.1rem; color: #059669; }
-        .date-text { color: #475569; font-size: 0.8rem; font-weight: 500; }
+        .req-id { font-family: monospace; font-size: 0.8rem; color: #d97706; background: #fffbeb; padding: 4px 8px; border-radius: 6px; font-weight: 700; border: 1px solid #fef3c7;}
+        .teacher-name { color: #4f46e5 !important; font-weight: 800; font-size: 0.95rem; }
+        .teacher-email { color: #64748b; font-size: 0.8rem; }
+        .amount-text { font-weight: 800; font-size: 1.1rem; color: #1e293b; }
+        
+        .action-btn { height: 35px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; transition: 0.3s; border: none; font-size: 0.85rem; font-weight: 700; padding: 0 15px; gap: 8px;}
+        .action-btn.approve { background: #ecfdf5; color: #059669; }
+        .action-btn.approve:hover { background: #059669; color: white; }
+        .action-btn.reject { background: #fef2f2; color: #dc2626; }
+        .action-btn.reject:hover { background: #dc2626; color: white; }
     </style>
 </head>
 <body>
@@ -75,8 +74,8 @@
                 <a href="${pageContext.request.contextPath}/admin/manage-categories" class="nav-item-link"><i class="fa-solid fa-layer-group w-20px text-center"></i> Categories</a>
                 <a href="${pageContext.request.contextPath}/admin/manage-courses" class="nav-item-link"><i class="fa-solid fa-video w-20px text-center"></i> All Courses</a>
                 <a href="${pageContext.request.contextPath}/admin/manage-users" class="nav-item-link"><i class="fa-solid fa-users-gear w-20px text-center"></i> User Management</a>
-                <a href="${pageContext.request.contextPath}/admin/manage-payments" class="nav-item-link active"><i class="fa-solid fa-money-bill-transfer w-20px text-center"></i> Transactions</a>
-                <a href="${pageContext.request.contextPath}/admin/payout-requests" class="nav-item-link"><i class="fa-solid fa-building-columns w-20px text-center"></i> Payout Requests</a>
+                <a href="${pageContext.request.contextPath}/admin/manage-payments" class="nav-item-link"><i class="fa-solid fa-money-bill-transfer w-20px text-center"></i> Transactions</a>
+                <a href="${pageContext.request.contextPath}/admin/payout-requests" class="nav-item-link active"><i class="fa-solid fa-building-columns w-20px text-center"></i> Payout Requests</a>
                 <a href="${pageContext.request.contextPath}/admin/manage-reviews" class="nav-item-link"><i class="fa-solid fa-star-half-stroke w-20px text-center"></i> Course Reviews</a>
                 <a href="${pageContext.request.contextPath}/admin/support-tickets" class="nav-item-link"><i class="fa-solid fa-headset w-20px text-center"></i> Support Desk</a>
                 <a href="${pageContext.request.contextPath}/admin/settings" class="nav-item-link"><i class="fa-solid fa-sliders w-20px text-center"></i> Settings</a>
@@ -87,8 +86,8 @@
         <div class="col-lg-9">
             <div class="main-content">
                 <div class="mb-4">
-                    <h2 class="fw-bold m-0 text-white">Platform Transactions</h2>
-                    <p class="text-dim m-0">Monitor enrollments and financial history.</p>
+                    <h2 class="fw-bold m-0 text-white">Instructor Payouts</h2>
+                    <p class="text-dim m-0">Review and process teacher withdrawal requests.</p>
                 </div>
 
                 <div class="content-card">
@@ -96,48 +95,52 @@
                         <table class="table custom-table">
                             <thead>
                                 <tr>
-                                    <th>Txn Info</th>
-                                    <th>Student</th>
-                                    <th>Course Details</th>
+                                    <th>ID</th>
+                                    <th>Instructor</th>
                                     <th>Amount</th>
                                     <th>Date</th>
                                     <th>Status</th>
+                                    <th class="text-end">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <c:forEach var="payment" items="${payments}">
+                                <c:forEach var="req" items="${payoutRequests}">
                                     <tr>
+                                        <td><span class="req-id">#${req.id}</span></td>
                                         <td>
-                                            <span class="txn-id">#${payment.transactionId}</span>
-                                            <div class="text-muted x-small mt-1" style="font-size: 0.65rem;">VIA: ${payment.paymentMethod}</div>
+                                            <%-- FIXED: 'teacher' changed to 'instructor' to match your entity --%>
+                                            <div class="teacher-name">${req.instructor.fullName}</div>
+                                            <div class="teacher-email">${req.instructor.email}</div>
                                         </td>
-                                        
+                                        <td><div class="amount-text">₹${req.amount}</div></td>
                                         <td>
-                                            <div class="student-name">${payment.user.fullName}</div>
-                                            <div class="student-email">${payment.user.email}</div>
+                                            <%-- FIXED: LocalDateTime handling --%>
+                                            <div class="fw-bold small" style="color: #475569;">${req.createdAt.toLocalDate()}</div>
                                         </td>
-                                        
-                                        <td>
-                                            <div class="course-title text-truncate" style="max-width: 180px;">${payment.course.title}</div>
-                                            <div class="instructor-name">By: ${payment.course.instructor.fullName}</div>
-                                        </td>
-                                        
-                                        <td class="amount-text">₹${payment.amount}</td>
-                                        
-                                        <td class="date-text">
-                                            <div>${payment.paidAt.toLocalDate()}</div>
-                                            <div class="small opacity-75">${payment.paidAt.toLocalTime().toString().substring(0,5)}</div>
-                                        </td>
-
                                         <td>
                                             <c:choose>
-                                                <c:when test="${payment.status.name() == 'SUCCESS' || payment.status.name() == 'COMPLETED'}">
-                                                    <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2 py-1">SUCCESS</span>
+                                                <c:when test="${req.status.name() == 'PENDING'}">
+                                                    <span class="badge bg-warning bg-opacity-10 text-warning px-2 py-1">PENDING</span>
+                                                </c:when>
+                                                <c:when test="${req.status.name() == 'PAID'}">
+                                                    <span class="badge bg-success bg-opacity-10 text-success px-2 py-1">PAID</span>
                                                 </c:when>
                                                 <c:otherwise>
-                                                    <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-2 py-1">${payment.status}</span>
+                                                    <span class="badge bg-danger bg-opacity-10 text-danger px-2 py-1">REJECTED</span>
                                                 </c:otherwise>
                                             </c:choose>
+                                        </td>
+                                        <td class="text-end">
+                                            <c:if test="${req.status.name() == 'PENDING'}">
+                                                <div class="d-flex gap-2 justify-content-end">
+                                                    <form action="${pageContext.request.contextPath}/admin/payouts/${req.id}/approve" method="post" class="m-0">
+                                                        <button type="submit" class="action-btn approve">Pay</button>
+                                                    </form>
+                                                    <form action="${pageContext.request.contextPath}/admin/payouts/${req.id}/reject" method="post" class="m-0">
+                                                        <button type="submit" class="action-btn reject"><i class="fa-solid fa-xmark"></i></button>
+                                                    </form>
+                                                </div>
+                                            </c:if>
                                         </td>
                                     </tr>
                                 </c:forEach>
