@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.*;
 import java.util.List;
 import java.util.UUID;
@@ -23,16 +24,49 @@ public class LessonService {
     private final LessonRepository lessonRepository;
     private final ModuleRepository moduleRepository;
 
-    public Lesson createLesson(LessonDto dto) {
-        CourseModule module = moduleRepository
-                .findById(dto.getModuleId())
-                .orElseThrow(() ->
-                        new RuntimeException("Module not found"));
+    /**
+     * Complete Method: Video Link, Video File aur PDF Upload handle karne ke liye
+     */
+    public void createLessonWithFiles(Long moduleId, String title, int duration, String videoUrl, 
+                                     String content, MultipartFile videoFile, MultipartFile pdfFile) throws IOException {
+        
+        CourseModule module = moduleRepository.findById(moduleId)
+                .orElseThrow(() -> new RuntimeException("Module not found"));
+
+        Lesson lesson = new Lesson();
+        lesson.setTitle(title);
+        lesson.setDurationMinutes(duration);
+        lesson.setContent(content);
+        lesson.setModule(module);
+
+        // 1. Handle Video (Priority: Uploaded File > Embed Link)
+        if (videoFile != null && !videoFile.isEmpty()) {
+            String videoPath = saveToDisk(videoFile, "uploads/videos");
+            lesson.setVideoUrl(videoPath); 
+        } else {
+            lesson.setVideoUrl(videoUrl); 
+        }
+
+        // 2. Handle PDF Notes
+        if (pdfFile != null && !pdfFile.isEmpty()) {
+            String pdfPath = saveToDisk(pdfFile, "uploads/docs");
+            lesson.setPdfUrl(pdfPath); 
+        }
+
+        lessonRepository.save(lesson);
+    }
+
+    /**
+     * DTO based lesson creation (Standard)
+     * Added 'throws IOException' to handle saveToDisk call
+     */
+    public Lesson createLesson(LessonDto dto) throws IOException {
+        CourseModule module = moduleRepository.findById(dto.getModuleId())
+                .orElseThrow(() -> new RuntimeException("Module not found"));
 
         String resourceUrl = null;
-        if (dto.getResourceFile() != null
-                && !dto.getResourceFile().isEmpty()) {
-            resourceUrl = saveFile(dto.getResourceFile());
+        if (dto.getResourceFile() != null && !dto.getResourceFile().isEmpty()) {
+            resourceUrl = saveToDisk(dto.getResourceFile(), "uploads/resources");
         }
 
         Lesson lesson = new Lesson();
@@ -41,42 +75,40 @@ public class LessonService {
         lesson.setVideoUrl(dto.getVideoUrl());
         lesson.setResourceUrl(resourceUrl);
         lesson.setDurationMinutes(dto.getDurationMinutes());
-        lesson.setOrderIndex(dto.getOrderIndex() != null
-                ? dto.getOrderIndex() : 0);
+        lesson.setOrderIndex(dto.getOrderIndex() != null ? dto.getOrderIndex() : 0);
         lesson.setFreePreview(dto.isFreePreview());
         lesson.setModule(module);
 
         return lessonRepository.save(lesson);
     }
 
-    // ← TeacherController addLesson(String, String, String, int, CourseModule)
-    public Lesson addLesson(String title, String content,
-                             String videoUrl, int orderIndex,
-                             CourseModule module) {
-        Lesson lesson = new Lesson();
-        lesson.setTitle(title);
-        lesson.setContent(content);
-        lesson.setVideoUrl(videoUrl);
-        lesson.setOrderIndex(orderIndex);
-        lesson.setModule(module);
-        return lessonRepository.save(lesson);
-    }
+    /**
+     * File saving logic (Helper)
+     */
+    private String saveToDisk(MultipartFile file, String uploadDir) throws IOException {
+        String fileName = UUID.randomUUID().toString() + "_" + file.getOriginalFilename();
+        Path uploadPath = Paths.get(uploadDir);
 
-    public void deleteLesson(Long id) {
-        lessonRepository.deleteById(id);
+        if (!Files.exists(uploadPath)) {
+            Files.createDirectories(uploadPath);
+        }
+
+        try (InputStream inputStream = file.getInputStream()) {
+            Path filePath = uploadPath.resolve(fileName);
+            Files.copy(inputStream, filePath, StandardCopyOption.REPLACE_EXISTING);
+            return "/" + uploadDir + "/" + fileName; 
+        }
     }
 
     @Transactional(readOnly = true)
     public Lesson getLessonById(Long id) {
         return lessonRepository.findById(id)
-                .orElseThrow(() ->
-                        new RuntimeException("Lesson not found: " + id));
+                .orElseThrow(() -> new RuntimeException("Lesson not found: " + id));
     }
 
     @Transactional(readOnly = true)
     public List<Lesson> getLessonsByModule(Long moduleId) {
-        return lessonRepository
-                .findByModuleIdOrderByOrderIndexAsc(moduleId);
+        return lessonRepository.findByModuleIdOrderByOrderIndexAsc(moduleId);
     }
 
     @Transactional(readOnly = true)
@@ -84,18 +116,7 @@ public class LessonService {
         return lessonRepository.findAllByCourseId(courseId);
     }
 
-    private String saveFile(MultipartFile file) {
-        try {
-            String dir = "uploads/resources/";
-            String fileName = UUID.randomUUID()
-                    + "_" + file.getOriginalFilename();
-            Path path = Paths.get(dir + fileName);
-            Files.createDirectories(path.getParent());
-            Files.copy(file.getInputStream(), path,
-                    StandardCopyOption.REPLACE_EXISTING);
-            return "/" + dir + fileName;
-        } catch (IOException e) {
-            throw new RuntimeException("File save nahi ho saka");
-        }
+    public void deleteLesson(Long id) {
+        lessonRepository.deleteById(id);
     }
 }

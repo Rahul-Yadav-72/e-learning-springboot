@@ -5,6 +5,7 @@ import com.elearn.model.*;
 import com.elearn.model.enums.PaymentStatus;
 import com.elearn.repository.*;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,6 +15,7 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 @Transactional
+@Slf4j
 public class PaymentService {
 
     private final PaymentRepository paymentRepository;
@@ -22,14 +24,14 @@ public class PaymentService {
     private final EnrollmentService enrollmentService;
 
     public Payment initiatePayment(Long courseId, String userEmail) {
+        log.info("Initiating payment for User: {} and Course: {}", userEmail, courseId);
+        
         User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() ->
-                        new RuntimeException("User not found"));
+                .orElseThrow(() -> new RuntimeException("User not found"));
         Course course = courseRepository.findById(courseId)
-                .orElseThrow(() ->
-                        new RuntimeException("Course not found"));
+                .orElseThrow(() -> new RuntimeException("Course not found"));
 
-        BigDecimal amount = course.getDiscountPrice() != null
+        BigDecimal amount = course.getDiscountPrice() != null 
                 ? course.getDiscountPrice() : course.getPrice();
 
         Payment payment = new Payment();
@@ -41,24 +43,21 @@ public class PaymentService {
         return paymentRepository.save(payment);
     }
 
-    // ← StudentController processPayment(User, PaymentDto) call karta tha
     public Payment processPayment(User user, PaymentDto dto) {
         return confirmPayment(dto, user.getEmail());
     }
 
     public Payment confirmPayment(PaymentDto dto, String userEmail) {
+        log.info("Confirming payment from Razorpay for User: {}", userEmail);
+        
         User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() ->
-                        new RuntimeException("User not found"));
-        Course course = courseRepository
-                .findById(dto.getCourseId())
-                .orElseThrow(() ->
-                        new RuntimeException("Course not found"));
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        Course course = courseRepository.findById(dto.getCourseId())
+                .orElseThrow(() -> new RuntimeException("Course not found"));
 
+        // ✅ FIX: Repository ke method ke hisaab se courseId pass kiya gaya hai
         Payment payment = paymentRepository
-                .findByUserAndCourseIdAndStatus(
-                        user, dto.getCourseId(),
-                        PaymentStatus.PENDING)
+                .findByUserAndCourseIdAndStatus(user, dto.getCourseId(), PaymentStatus.PENDING)
                 .orElseGet(() -> {
                     Payment p = new Payment();
                     p.setUser(user);
@@ -72,34 +71,36 @@ public class PaymentService {
         payment.setStatus(PaymentStatus.COMPLETED);
         paymentRepository.save(payment);
 
-        enrollmentService.enrollStudent(
-                user.getId(), dto.getCourseId());
+        // Payment successful hone par student ko enroll kar do
+        enrollmentService.enrollStudent(user.getId(), dto.getCourseId());
+        log.info("User {} successfully enrolled in Course {}", userEmail, course.getTitle());
 
         return payment;
     }
 
     public void enrollFree(Long courseId, String userEmail) {
         User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() ->
-                        new RuntimeException("User not found"));
+                .orElseThrow(() -> new RuntimeException("User not found"));
         Course course = courseRepository.findById(courseId)
-                .orElseThrow(() ->
-                        new RuntimeException("Course not found"));
+                .orElseThrow(() -> new RuntimeException("Course not found"));
+                
         if (course.getPrice().compareTo(BigDecimal.ZERO) != 0) {
-            throw new RuntimeException("Yeh course free nahi hai");
+            throw new RuntimeException("This course is not free!");
         }
+        
         enrollmentService.enrollStudent(user.getId(), courseId);
+        log.info("User {} enrolled in free Course {}", userEmail, course.getTitle());
     }
 
-    // ← TeacherController getTeacherPayments(User) call karta tha
+    @Transactional(readOnly = true)
     public List<Payment> getTeacherPayments(User teacher) {
+        // ✅ FIX: Repository ke custom query method ke hisaab se change kiya
         return paymentRepository.findByTeacherId(teacher.getId());
     }
 
-    // ← TeacherController getTeacherEarnings(User) call karta tha
+    @Transactional(readOnly = true)
     public BigDecimal getTeacherEarnings(User teacher) {
-        BigDecimal earnings = paymentRepository
-                .calculateRevenueByTeacher(teacher.getId());
+        BigDecimal earnings = paymentRepository.calculateRevenueByTeacher(teacher.getId());
         return earnings != null ? earnings : BigDecimal.ZERO;
     }
 

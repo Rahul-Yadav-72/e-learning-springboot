@@ -61,6 +61,11 @@ public class UserService {
         
         return savedUser;
     }
+ // UserService.java
+    public User findByEmail(String email) {
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+    }
 
     /**
      * Verifies the OTP entered by the user.

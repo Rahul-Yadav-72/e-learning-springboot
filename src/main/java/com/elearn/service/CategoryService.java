@@ -41,6 +41,21 @@ public class CategoryService {
         return categoryRepository.save(cat);
     }
 
+    // ── NAYA METHOD JO ERROR FIX KAREGA ──
+    public Category updateCategory(Long id, String name, String description) {
+        Category category = getCategoryById(id);
+        
+        // Agar naam change ho raha hai, to check karo ki naya naam pehle se kisi aur ka to nahi
+        if (!category.getName().equalsIgnoreCase(name) && categoryRepository.existsByName(name)) {
+            throw new RuntimeException("Another category with this name already exists!");
+        }
+        
+        category.setName(name);
+        category.setDescription(description);
+        
+        return categoryRepository.save(category);
+    }
+
     public void deleteCategory(Long id) {
         categoryRepository.deleteById(id);
     }

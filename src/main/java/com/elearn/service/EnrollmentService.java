@@ -108,4 +108,11 @@ public class EnrollmentService {
                 .orElseThrow(() ->
                         new RuntimeException("Enrollment not found"));
     }
+    public long getTotalStudentsForTeacher(Long teacherId) {
+        return enrollmentRepository.countTotalStudentsByTeacherId(teacherId);
+    }
+
+    public List<Enrollment> getEnrollmentsByTeacher(User teacher) {
+        return enrollmentRepository.findByCourse_Instructor(teacher);
+    }
 }

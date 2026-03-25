@@ -8,10 +8,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.nio.file.*;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -23,101 +21,112 @@ public class AssignmentService {
     private final ModuleRepository moduleRepository;
     private final UserRepository userRepository;
 
-    public Assignment createAssignment(String title,
-            String description, LocalDate dueDate,
-            Integer maxMarks, Long moduleId) {
-
+    /** ── 1. Create New Assignment ── */
+    /** ── 1. Create New Assignment ── */
+    public Assignment createAssignment(String title, String description, LocalDate dueDate,
+                                     Integer maxMarks, Long moduleId, String type) { // <-- 1. Yahan 'String type' add kiya
+        
         CourseModule module = moduleRepository.findById(moduleId)
-                .orElseThrow(() ->
-                        new RuntimeException("Module not found"));
+                .orElseThrow(() -> new RuntimeException("Module not found"));
 
-        Assignment assignment = new Assignment();
-        assignment.setTitle(title);
-        assignment.setDescription(description);
-        assignment.setDueDate(dueDate);
-        assignment.setMaxMarks(maxMarks);
-        assignment.setModule(module);
+        Assignment assignment = Assignment.builder()
+                .title(title)
+                .description(description)
+                .dueDate(dueDate)
+                .maxMarks(maxMarks)
+                .module(module)
+                .type(type) // <-- 2. Ab ye 'type' upar wale parameter se data lega
+                .build();
 
         return assignmentRepository.save(assignment);
     }
-
-    // ← StudentController submitAssignment(User, Long, String) call karta tha
-    public AssignmentSubmission submitAssignment(User student,
-            Long assignmentId, String text) {
-        return submitAssignment(assignmentId,
-                student.getEmail(), text, null);
+    
+    public AssignmentSubmission submitAssignment(User student, Long assignmentId, String text) {
+        // Ye method asli method ko call karega aur file ko 'null' bhej dega
+        return submitAssignment(assignmentId, student.getEmail(), text, null);
+    }
+ // Assignment id se fetch karne ke liye method
+    public Assignment getAssignmentById(Long id) {
+        return assignmentRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Assignment not found with id: " + id));
+    }
+ // Assignment delete karne ka logic
+    public void deleteAssignment(Long assignmentId) {
+        // Pehle check karte hain ki assignment exist karta hai ya nahi
+        if (assignmentRepository.existsById(assignmentId)) {
+            assignmentRepository.deleteById(assignmentId);
+            System.out.println("✅ Assignment ID " + assignmentId + " deleted successfully.");
+        } else {
+            throw new RuntimeException("Assignment not found with ID: " + assignmentId);
+        }
     }
 
-    public AssignmentSubmission submitAssignment(Long assignmentId,
-            String studentEmail, String text, MultipartFile file) {
+    /** ── 2. Submit Assignment (PDF to DB BLOB) ── */
+    public AssignmentSubmission submitAssignment(Long assignmentId, String studentEmail, 
+                                                String text, MultipartFile file) {
 
-        Assignment assignment = assignmentRepository
-                .findById(assignmentId)
-                .orElseThrow(() ->
-                        new RuntimeException("Assignment not found"));
+        Assignment assignment = assignmentRepository.findById(assignmentId)
+                .orElseThrow(() -> new RuntimeException("Assignment not found"));
+        
         User student = userRepository.findByEmail(studentEmail)
-                .orElseThrow(() ->
-                        new RuntimeException("Student not found"));
+                .orElseThrow(() -> new RuntimeException("Student not found"));
 
-        if (submissionRepository.existsByAssignmentIdAndStudentId(
-                assignmentId, student.getId())) {
-            throw new RuntimeException(
-                    "Assignment already submit kar chuke hain");
+        // Check duplicate submission
+        if (submissionRepository.existsByAssignmentAndStudent(assignment, student)) {
+            throw new RuntimeException("Assignment already submitted!");
         }
 
-        String fileUrl = null;
+        AssignmentSubmission sub = AssignmentSubmission.builder()
+                .assignment(assignment)
+                .student(student)
+                .submissionText(text)
+                .graded(false)
+                .build();
+
+        // Convert PDF file to byte array for Database storage
         if (file != null && !file.isEmpty()) {
-            fileUrl = saveFile(file);
+            try {
+                sub.setFileData(file.getBytes()); // Yahan bytes direct save ho rahe hain
+                sub.setFileName(file.getOriginalFilename());
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to process PDF file: " + e.getMessage());
+            }
         }
-
-        AssignmentSubmission sub = new AssignmentSubmission();
-        sub.setAssignment(assignment);
-        sub.setStudent(student);
-        sub.setSubmissionText(text);
-        sub.setFileUrl(fileUrl);
-        sub.setGraded(false);
 
         return submissionRepository.save(sub);
     }
 
-    public AssignmentSubmission gradeAssignment(Long submissionId,
-            Integer marks, String feedback) {
-        AssignmentSubmission sub = submissionRepository
-                .findById(submissionId)
-                .orElseThrow(() ->
-                        new RuntimeException("Submission not found"));
+    /** ── 3. Teacher: Grade Submission ── */
+    public void gradeSubmission(Long submissionId, int marks, String feedback) {
+        AssignmentSubmission sub = submissionRepository.findById(submissionId)
+                .orElseThrow(() -> new RuntimeException("Submission not found"));
+        
+        if (marks > sub.getAssignment().getMaxMarks()) {
+            throw new RuntimeException("Marks cannot exceed " + sub.getAssignment().getMaxMarks());
+        }
+
         sub.setMarksObtained(marks);
         sub.setFeedback(feedback);
         sub.setGraded(true);
-        return submissionRepository.save(sub);
+        submissionRepository.save(sub);
+    }
+    
+    
+
+    /** ── 4. Queries for Teacher ── */
+    @Transactional(readOnly = true)
+    public List<AssignmentSubmission> getSubmissionsByTeacher(User teacher) {
+        return submissionRepository.findByAssignment_Module_Course_Instructor(teacher);
     }
 
     @Transactional(readOnly = true)
-    public List<AssignmentSubmission> getSubmissions(
-            Long assignmentId) {
-        return submissionRepository.findByAssignmentId(assignmentId);
+    public List<Assignment> getAssignmentsByTeacher(User teacher) {
+        return assignmentRepository.findByModule_Course_Instructor(teacher);
     }
 
     @Transactional(readOnly = true)
-    public List<AssignmentSubmission> getUngradedSubmissions(
-            Long assignmentId) {
-        return submissionRepository
-                .findByAssignmentIdAndGradedFalse(assignmentId);
-    }
-
-    private String saveFile(MultipartFile file) {
-        try {
-            String dir = "uploads/assignments/";
-            String fileName = UUID.randomUUID()
-                    + "_" + file.getOriginalFilename();
-            Path path = Paths.get(dir + fileName);
-            Files.createDirectories(path.getParent());
-            Files.copy(file.getInputStream(), path,
-                    StandardCopyOption.REPLACE_EXISTING);
-            return "/" + dir + fileName;
-        } catch (IOException e) {
-            throw new RuntimeException(
-                    "File upload fail: " + e.getMessage());
-        }
+    public AssignmentSubmission findById(Long id) {
+        return submissionRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Submission not found"));
     }
 }

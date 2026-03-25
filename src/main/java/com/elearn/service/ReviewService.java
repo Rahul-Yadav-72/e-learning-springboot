@@ -53,6 +53,11 @@ public class ReviewService {
 
         return reviewRepository.save(review);
     }
+ // Admin panel ke liye saare reviews nikalne ka method
+    @Transactional(readOnly = true)
+    public List<Review> getAllReviews() {
+        return reviewRepository.findAll();
+    }
 
     @Transactional(readOnly = true)
     public List<Review> getCourseReviews(Long courseId) {
