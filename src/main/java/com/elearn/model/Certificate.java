@@ -32,6 +32,7 @@ public class Certificate {
 
     private String fileUrl;
 
+    // ✅ FIXED: Variable name updated to match JSP (${cert.issueDate})
     @CreationTimestamp
-    private LocalDateTime issuedAt;
+    private LocalDateTime issueDate; 
 }

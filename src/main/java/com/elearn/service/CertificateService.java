@@ -26,18 +26,18 @@ public class CertificateService {
     private String baseUrl;
 
     public Certificate generateCertificate(Long userId, Long courseId) {
-        // 1. Check if certificate already exists
-        if (certificateRepository.existsByUserIdAndCourseId(userId, courseId)) {
-            return certificateRepository
-                    .findByUserIdAndCourseId(userId, courseId)
-                    .orElseThrow(() -> new RuntimeException("Certificate not found even after exist check"));
-        }
-
-        // 2. Fetch User and Course
+        // 1. Fetch User and Course first to use objects in repository
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
         Course course = courseRepository.findById(courseId)
                 .orElseThrow(() -> new RuntimeException("Course not found"));
+
+        // 2. Check if certificate already exists using Objects
+        if (certificateRepository.existsByUserAndCourse(user, course)) {
+            return certificateRepository
+                    .findByUserAndCourse(user, course)
+                    .orElseThrow(() -> new RuntimeException("Certificate not found even after exist check"));
+        }
 
         // 3. Generate unique certificate number
         String certNumber = generateCertificateNumber();
@@ -47,14 +47,15 @@ public class CertificateService {
         cert.setUser(user);
         cert.setCourse(course);
         cert.setCertificateNumber(certNumber);
-        cert.setIssuedAt(LocalDateTime.now());
+        
+        // ✅ FIXED: Using issueDate instead of issuedAt to match Model
+        cert.setIssueDate(LocalDateTime.now());
 
         certificateRepository.save(cert);
 
-        // 5. Send Professional Email with Full URL
+        // 5. Send Professional Email
         String fullCertificateUrl = baseUrl + "/certificates/" + certNumber;
         
-        // FIX: Removed the trailing comma after fullCertificateUrl
         emailService.sendCertificateEmail(
                 user.getEmail(),
                 user.getFullName(),
@@ -67,12 +68,15 @@ public class CertificateService {
 
     @Transactional(readOnly = true)
     public List<Certificate> getCertificatesByUser(User user) {
-        return certificateRepository.findByUserId(user.getId());
+        // ✅ FIXED: Using findByUser instead of findByUserId
+        return certificateRepository.findByUser(user);
     }
 
     @Transactional(readOnly = true)
     public List<Certificate> getUserCertificates(Long userId) {
-        return certificateRepository.findByUserId(userId);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        return certificateRepository.findByUser(user);
     }
 
     @Transactional(readOnly = true)
@@ -82,7 +86,6 @@ public class CertificateService {
 
     private String generateCertificateNumber() {
         String year = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy"));
-        // Using last few digits of current time for uniqueness
         String unique = String.valueOf(System.currentTimeMillis()).substring(8);
         return "CERT-" + year + "-" + unique;
     }
