@@ -1,6 +1,7 @@
 package com.elearn.repository;
 
 import com.elearn.model.Assignment;
+import com.elearn.model.Course;
 import com.elearn.model.User;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -13,10 +14,10 @@ public interface AssignmentRepository extends JpaRepository<Assignment, Long> {
 
     List<Assignment> findByModuleId(Long moduleId);
 
-    // Module ke through course ke saare assignments
-    List<Assignment> findByModuleCourseId(Long courseId);
-
-     // JPA Magic: Assignment -> Module -> Course -> Instructor
-     List<Assignment> findByModule_Course_Instructor(User instructor);
+    // JPA Magic: Assignment -> Module -> Course
+    List<Assignment> findByModule_CourseIn(List<Course> courses);
+     
+    // JPA Magic: Assignment -> Module -> Course -> Instructor
+    List<Assignment> findByModule_Course_Instructor(User instructor);
     
 }
