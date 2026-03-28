@@ -164,7 +164,6 @@ public class TeacherController {
         for(Course course : courses) {
             List<CourseModule> modules = moduleService.getModulesByCourse(course.getId());
             for(CourseModule module : modules) {
-                module.getAssignments().size(); 
                 allTeacherAssignments.addAll(module.getAssignments());
                 teacherModules.add(module);
             }
@@ -255,13 +254,13 @@ public class TeacherController {
     }
 
     // ── 7. Revenue & Profile ──
- // ── 7. Revenue & Profile ──
-    @GetMapping("/revenue")   // <--- Ise theek kar diya
+    // ✅ FIX: Changed from "/revenue" to "/earnings" to perfectly match sidebar.jsp link
+    @GetMapping("/earnings")   
     public String detailedEarnings(@AuthenticationPrincipal UserDetails ud, Model model) {
         User teacher = getCurrentUser(ud);
         model.addAttribute("transactions", paymentService.getTeacherPayments(teacher));
         model.addAttribute("totalEarnings", paymentService.getTeacherEarnings(teacher));
-        return "teacher/revenue"; 
+        return "teacher/revenue"; // Yeh wahi revenue.jsp open karega
     }
 
     @GetMapping("/profile")
@@ -269,12 +268,20 @@ public class TeacherController {
         return "teacher/profile";
     }
 
+    // ✅ FIX: Added try-catch and MultipartFile support for Profile image upload
     @PostMapping("/profile/update")
-    public String updateProfile(@AuthenticationPrincipal UserDetails ud, @RequestParam String fullName,
-                               @RequestParam(required = false) String bio, @RequestParam(required = false) String phone,
-                               RedirectAttributes ra) {
-        userService.updateProfile(getCurrentUser(ud).getId(), fullName, bio, phone, null);
-        ra.addFlashAttribute("successMsg", "Profile Updated!");
+    public String updateProfile(@AuthenticationPrincipal UserDetails ud, 
+                                @RequestParam String fullName,
+                                @RequestParam(required = false) String bio, 
+                                @RequestParam(required = false) String phone,
+                                @RequestParam(required = false) MultipartFile profileImage,
+                                RedirectAttributes ra) {
+        try {
+            userService.updateProfile(getCurrentUser(ud).getId(), fullName, bio, phone, profileImage);
+            ra.addFlashAttribute("successMsg", "Profile Updated Successfully!");
+        } catch (Exception e) {
+            ra.addFlashAttribute("errorMsg", "Failed to update profile: " + e.getMessage());
+        }
         return "redirect:/teacher/profile";
     }
 }

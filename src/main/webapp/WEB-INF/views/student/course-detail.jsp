@@ -1,265 +1,203 @@
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
 <%@ taglib prefix="fmt" uri="jakarta.tags.fmt" %>
-<c:set var="pageTitle" value="${course.title}"/>
+<c:set var="pageTitle" value="${course.title} - Details"/>
 <%@ include file="../common/header.jsp" %>
 
-<div class="row g-4">
+<style>
+    :root {
+        --bg-dark: #020617;
+        --surface: rgba(15, 23, 42, 0.6);
+        --primary: #6366f1;
+        --accent: #a855f7;
+        --emerald: #10b981;
+        --warning: #f59e0b;
+        --text-dim: #94a3b8;
+        --glass-border: rgba(255, 255, 255, 0.08);
+    }
 
-    <div class="col-lg-8">
+    body { background-color: var(--bg-dark); color: #f8fafc; overflow-x: hidden; }
 
-        <nav class="mb-3">
-            <span style="color:rgba(255,255,255,0.4); font-size:0.85rem;">
-                <a href="${pageContext.request.contextPath}/courses" style="color:rgba(255,255,255,0.4);">Courses</a>
-                &nbsp;/&nbsp;
-                <c:if test="${course.category != null}">
-                    ${course.category.name} &nbsp;/&nbsp;
-                </c:if>
-                <span style="color:white; font-weight:600;">${course.title}</span>
-            </span>
-        </nav>
+    .detail-glow {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: radial-gradient(circle at 70% 10%, rgba(99, 102, 241, 0.05) 0%, transparent 60%);
+        z-index: -1; pointer-events: none;
+    }
 
-        <div class="glass-card mb-4 overflow-hidden">
-            <div style="height:280px; background:linear-gradient(135deg,#0f3460,#1a1a2e); display:flex; align-items:center; justify-content:center; position:relative;">
-                <c:choose>
-                    <c:when test="${not empty course.thumbnailUrl}">
-                        <img src="${course.thumbnailUrl}" alt="Course Preview" style="width:100%; height:100%; object-fit:cover; opacity:0.6;">
-                    </c:when>
-                    <c:otherwise>
-                         <i class="fa-solid fa-play-circle" style="font-size:5rem; color:rgba(255,255,255,0.15);"></i>
-                    </c:otherwise>
-                </c:choose>
-                <div style="position:absolute; top:20px; left:20px; display:flex; gap:10px;">
-                    <span class="badge-glow badge-primary">${course.level}</span>
-                    <span class="badge-glow badge-gray">${course.language}</span>
+    .glass-card { 
+        background: var(--surface); backdrop-filter: blur(12px); 
+        border: 1px solid var(--glass-border); border-radius: 24px; 
+    }
+
+    .hero-container { position: relative; border-radius: 24px; overflow: hidden; margin-bottom: 2rem; border: 1px solid var(--glass-border); }
+    .course-hero-img { width: 100%; height: 400px; object-fit: cover; filter: brightness(0.8); transition: 0.5s; }
+    
+    .hero-overlay {
+        position: absolute; inset: 0;
+        background: linear-gradient(to top, rgba(2, 6, 23, 1) 0%, rgba(2, 6, 23, 0.2) 60%, transparent 100%);
+        display: flex; flex-direction: column; justify-content: flex-end; padding: 40px;
+    }
+
+    .instructor-avatar-img { 
+        width: 48px; height: 48px; border-radius: 14px; 
+        object-fit: cover; border: 2px solid var(--primary);
+    }
+
+    .instructor-avatar-initial { 
+        width: 48px; height: 48px; border-radius: 14px; 
+        background: linear-gradient(135deg, var(--primary), var(--accent));
+        display: flex; align-items: center; justify-content: center;
+        font-weight: 900; color: white; font-size: 1.2rem;
+    }
+
+    .module-header { 
+        background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border);
+        border-radius: 16px; padding: 18px 24px; transition: 0.3s; cursor: pointer; 
+        display: flex; justify-content: space-between; align-items: center;
+    }
+    .module-header.open { border-color: var(--primary); background: rgba(99, 102, 241, 0.1); }
+    
+    .lesson-list { background: rgba(0,0,0,0.2); border-radius: 0 0 16px 16px; display: none; padding: 10px; border: 1px solid var(--glass-border); border-top: none; }
+
+    .btn-action-glow {
+        background: var(--primary); color: white; border: none; padding: 16px;
+        border-radius: 16px; font-weight: 800; font-size: 1.1rem; transition: 0.3s;
+        box-shadow: 0 10px 30px rgba(99, 102, 241, 0.3); width: 100%; display: block; text-align: center; text-decoration: none;
+    }
+    .btn-success-glow { background: var(--emerald); }
+
+    /* Star Rating Fix */
+    .star-rating label { color: #475569; font-size: 2rem; cursor: pointer; transition: 0.2s; }
+    .star-rating input:checked ~ label, .star-rating label:hover, .star-rating label:hover ~ label { color: var(--warning) !important; }
+
+    @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    .animate-fade-in { animation: fadeInUp 0.6s ease-out forwards; }
+</style>
+
+<div class="detail-glow"></div>
+
+<div class="container-fluid px-lg-5 py-4">
+    
+    <div class="mb-4 small fw-700 animate-fade-in">
+        <a href="${pageContext.request.contextPath}/courses" class="text-dim text-decoration-none">Explore Catalog</a> 
+        <i class="fa-solid fa-chevron-right mx-2 text-white-50"></i> 
+        <span class="text-primary">${course.category.name}</span>
+    </div>
+
+    <div class="row g-5">
+        <div class="col-lg-8 animate-fade-in">
+            
+            <div class="hero-container shadow-lg">
+                <img src="${pageContext.request.contextPath}${course.thumbnailUrl}" class="course-hero-img" alt="Banner">
+                <div class="hero-overlay">
+                    <h1 class="display-5 fw-900 text-white mb-0">${course.title}</h1>
                 </div>
             </div>
 
-            <div class="glass-card-body">
-                <h1 style="color:white; font-weight:800; font-size:1.8rem; margin-bottom:12px;">${course.title}</h1>
-
-                <div class="d-flex align-items-center gap-4 flex-wrap mb-4">
-                    <div class="d-flex align-items-center gap-2">
-                        <i class="fa-solid fa-star text-warning"></i>
-                        <span class="fw-bold text-white"><fmt:formatNumber value="${avgRating}" maxFractionDigits="1"/></span>
-                        <span class="text-muted small">(${reviews.size()} student reviews)</span>
-                    </div>
-                    <div class="text-muted small">
-                        <i class="fa-solid fa-user-check me-1"></i> ${course.totalEnrollments} students enrolled
-                    </div>
+            <%-- Meta Row with Date Fix --%>
+            <div class="d-flex align-items-center flex-wrap gap-4 mb-5 pb-4 border-bottom border-white-50 border-opacity-10">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="fa-solid fa-star text-warning"></i>
+                    <span class="fw-900 fs-5 text-white">${avgRating}</span>
                 </div>
-
-                <div style="display:flex; align-items:center; gap:12px; padding:15px; background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:12px;">
-                    <div style="width:45px; height:45px; border-radius:50%; background:linear-gradient(135deg,#4e73df,#224abe); display:flex; align-items:center; justify-content:center; font-weight:800; color:white;">
-                        ${course.instructor.fullName.substring(0,1)}
-                    </div>
-                    <div>
-                        <div class="text-muted small">Published by Expert Instructor</div>
-                        <div class="text-white fw-bold">${course.instructor.fullName}</div>
-                    </div>
+                <div class="text-dim small fw-600">
+                    <i class="fa-solid fa-calendar-day text-primary me-2"></i>
+                    Last Updated: ${course.updatedAt != null ? course.updatedAt : 'March 2026'}
+                </div>
+                
+                <div class="d-flex align-items-center gap-3 ms-md-auto">
+                    <c:choose>
+                        <c:when test="${not empty course.instructor.profilePicture}">
+                            <img src="${pageContext.request.contextPath}${course.instructor.profilePicture}" class="instructor-avatar-img">
+                        </c:when>
+                        <c:otherwise>
+                            <div class="instructor-avatar-initial">${course.instructor.fullName.substring(0,1)}</div>
+                        </c:otherwise>
+                    </c:choose>
+                    <div class="fw-800 text-white">${course.instructor.fullName}</div>
                 </div>
             </div>
-        </div>
 
-        <div class="glass-card mb-4">
-            <div class="glass-card-header">
-                <h5><i class="fa-solid fa-align-left me-2 text-primary"></i>About this Course</h5>
+            <div class="glass-card p-4 p-md-5 mb-5 shadow-sm">
+                <h4 class="fw-900 text-white mb-4">About This Course</h4>
+                <p class="text-dim" style="line-height: 1.8;">${course.description}</p>
             </div>
-            <div class="glass-card-body">
-                <p class="text-muted" style="line-height:1.8;">${course.description}</p>
-                <c:if test="${not empty course.whatYoullLearn}">
-                    <div class="mt-4 p-3 rounded-3" style="background:rgba(78,115,223,0.05); border:1px solid rgba(78,115,223,0.15);">
-                        <h6 class="text-primary fw-bold mb-3 small text-uppercase">What You'll Master</h6>
-                        <div class="text-muted small" style="line-height:1.8;">${course.whatYoullLearn}</div>
-                    </div>
-                </c:if>
-            </div>
-        </div>
 
-        <div class="glass-card mb-4">
-            <div class="glass-card-header">
-                <h5><i class="fa-solid fa-layer-group me-2 text-primary"></i>Curriculum Overview</h5>
-                <span class="text-muted small">${course.modules.size()} Learning Modules</span>
-            </div>
-            <div class="glass-card-body p-0">
-                <c:forEach var="cmod" items="${course.modules}">
-                    <div class="border-bottom border-white-50 opacity-75">
-                        <div class="p-3 d-flex justify-content-between align-items-center cursor-pointer hover-bg" onclick="toggleModule('mod-${cmod.id}', this)" style="background:rgba(255,255,255,0.01);">
-                            <div class="d-flex align-items-center gap-3">
-                                <i class="fa-solid fa-chevron-right text-muted small transition-rotate"></i>
-                                <span class="text-white fw-bold small">${cmod.title}</span>
-                            </div>
-                            <span class="text-muted small">${cmod.lessons.size()} lessons</span>
+            <%-- Syllabus Section --%>
+            <div class="mb-5">
+                <h4 class="fw-900 text-white mb-4">Course Curriculum</h4>
+                <c:forEach var="module" items="${course.modules}">
+                    <div class="module-item">
+                        <div class="module-header" onclick="toggleModule('mod-${module.id}', this)">
+                            <span class="fw-800 text-white">${module.title}</span>
+                            <i class="fa-solid fa-chevron-down transition-rotate text-dim"></i>
                         </div>
-
-                        <div id="mod-${cmod.id}" style="display:none;">
-                            <c:forEach var="lesson" items="${cmod.lessons}">
-                                <div class="py-2 px-4 d-flex justify-content-between align-items-center border-top border-white-50">
-                                    <div class="d-flex align-items-center gap-3">
-                                        <c:choose>
-                                            <c:when test="${lesson.freePreview or isEnrolled}">
-                                                <i class="fa-solid fa-circle-play text-primary small"></i>
-                                            </c:when>
-                                            <c:otherwise>
-                                                <i class="fa-solid fa-lock text-muted small"></i>
-                                            </c:otherwise>
-                                        </c:choose>
-                                        <span class="text-muted small">${lesson.title}</span>
-                                        <c:if test="${lesson.freePreview}">
-                                            <span class="badge-glow badge-success py-0 px-2" style="font-size:0.6rem;">Preview Available</span>
-                                        </c:if>
-                                    </div>
-                                    <span class="text-muted small" style="font-size:0.7rem;">${lesson.durationMinutes} min</span>
+                        <div id="mod-${module.id}" class="lesson-list">
+                            <c:forEach var="lesson" items="${module.lessons}">
+                                <div class="p-2 text-dim border-bottom border-white-50 border-opacity-5">
+                                    <i class="fa-solid fa-circle-play me-2 text-primary"></i> ${lesson.title}
                                 </div>
                             </c:forEach>
                         </div>
                     </div>
                 </c:forEach>
             </div>
-        </div>
 
-        <div class="glass-card">
-            <div class="glass-card-header">
-                <h5><i class="fa-solid fa-comments me-2 text-warning"></i>Global Reviews</h5>
-                <div class="d-flex align-items-center gap-2">
-                    <span class="h4 text-white mb-0"><fmt:formatNumber value="${avgRating}" maxFractionDigits="1"/></span>
-                    <span class="text-muted">/ 5.0</span>
+            <%-- Reviews Section with Date Fix --%>
+            <div class="mb-5 border-top border-white-50 border-opacity-10 pt-5">
+                <h4 class="fw-900 text-white mb-4">Student Reviews</h4>
+                <div class="row g-4">
+                    <c:forEach var="rev" items="${reviews}">
+                        <div class="col-md-6">
+                            <div class="glass-card p-4">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="text-white fw-bold">${rev.user.fullName}</span>
+                                    <span class="text-muted small">${rev.reviewDate != null ? rev.reviewDate : 'Recently'}</span>
+                                </div>
+                                <div class="text-warning mb-2">
+                                    <c:forEach begin="1" end="${rev.rating}"><i class="fa-solid fa-star"></i></c:forEach>
+                                </div>
+                                <p class="text-dim small m-0">"${rev.comment}"</p>
+                            </div>
+                        </div>
+                    </c:forEach>
                 </div>
             </div>
-            <div class="glass-card-body">
-                <c:choose>
-                    <c:when test="${not empty reviews}">
-                        <c:forEach var="rev" items="${reviews}">
-                            <div class="mb-4 pb-3 border-bottom border-white-50">
-                                <div class="d-flex align-items-center gap-3 mb-2">
-                                    <div class="reviewer-avatar" style="width:35px; height:35px; border-radius:50%; background:var(--glass-b); display:flex; align-items:center; justify-content:center; color:white; font-size:0.8rem;">
-                                        ${rev.user.fullName.substring(0,1)}
-                                    </div>
-                                    <div>
-                                        <div class="text-white small fw-bold">${rev.user.fullName}</div>
-                                        <div class="text-warning small" style="font-size:0.7rem;">
-                                            <c:forEach begin="1" end="${rev.rating}">★</c:forEach>
-                                        </div>
-                                    </div>
-                                </div>
-                                <p class="text-muted small mb-0">${rev.comment}</p>
-                            </div>
-                        </c:forEach>
-                    </c:when>
-                    <c:otherwise>
-                        <div class="text-center py-4 text-muted small">No reviews submitted for this course yet.</div>
-                    </c:otherwise>
-                </c:choose>
-
-                <c:if test="${isEnrolled}">
-                    <div class="mt-4 pt-3 border-top border-white-50">
-                        <h6 class="text-white mb-3">Share Your Feedback</h6>
-                        <form action="${pageContext.request.contextPath}/student/review/add" method="post">
-                            <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
-                            <input type="hidden" name="courseId" value="${course.id}"/>
-                            <div class="mb-3">
-                                <label class="small text-muted fw-bold mb-2">Rate your experience</label>
-                                <div id="starRating" class="d-flex gap-2">
-                                    <c:forEach begin="1" end="5" var="s">
-                                        <span class="star-item cursor-pointer h4 mb-0 text-white-50">★</span>
-                                    </c:forEach>
-                                </div>
-                                <input type="hidden" name="rating" id="ratingValue"/>
-                            </div>
-                            <div class="mb-3">
-                                <textarea name="comment" class="form-control-dark" rows="3" placeholder="Write your thoughts about the course content..."></textarea>
-                            </div>
-                            <button type="submit" class="btn-glow btn-primary-glow btn-sm-glow">Submit Review</button>
-                        </form>
-                    </div>
-                </c:if>
-            </div>
         </div>
-    </div>
 
-    <div class="col-lg-4">
-        <div class="glass-card sticky-top" style="top:90px; z-index:100;">
-            <div style="height:180px; background:linear-gradient(135deg,#224abe,#0f3460); display:flex; align-items:center; justify-content:center;">
-                <i class="fa-solid fa-graduation-cap text-white opacity-25" style="font-size:4rem;"></i>
-            </div>
-            <div class="glass-card-body">
-                <div class="mb-4">
-                    <c:choose>
-                        <c:when test="${course.discountPrice != null}">
-                            <div class="h3 text-white fw-900 mb-0">&#8377;${course.discountPrice}</div>
-                            <span class="text-muted text-decoration-line-through small">&#8377;${course.price}</span>
-                            <span class="badge bg-danger ms-2 small">SALE</span>
-                        </c:when>
-                        <c:when test="${course.price == 0}">
-                            <div class="h3 text-success fw-900 mb-0">FREE</div>
-                        </c:when>
-                        <c:otherwise>
-                            <div class="h3 text-white fw-900 mb-0">&#8377;${course.price}</div>
-                        </c:otherwise>
-                    </c:choose>
-                </div>
-
+        <%-- Sticky Sidebar --%>
+        <div class="col-lg-4">
+            <div class="glass-card p-4 p-md-5 sticky-top" style="top: 100px;">
+                <h2 class="display-6 fw-900 text-white mb-4">₹${course.price}</h2>
                 <c:choose>
                     <c:when test="${isEnrolled}">
-                        <a href="${pageContext.request.contextPath}/student/learn/${course.id}" class="btn-glow btn-success-glow w-100 py-3 justify-content-center">
-                            <i class="fa-solid fa-play-circle me-2"></i> Resume Learning
-                        </a>
-                    </c:when>
-                    <c:when test="${course.price == 0}">
-                        <form action="${pageContext.request.contextPath}/student/enroll/free/${course.id}" method="post">
-                            <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
-                            <button type="submit" class="btn-glow btn-success-glow w-100 py-3">Enroll Now for Free</button>
-                        </form>
+                        <a href="${pageContext.request.contextPath}/student/learn/${course.id}" class="btn-action-glow btn-success-glow">Enter Classroom</a>
                     </c:when>
                     <c:otherwise>
-                        <a href="${pageContext.request.contextPath}/student/payment/${course.id}" class="btn-glow btn-primary-glow w-100 py-3 justify-content-center">
-                            Buy this Course
-                        </a>
+                        <a href="${pageContext.request.contextPath}/student/payment/${course.id}" class="btn-action-glow">Buy Now</a>
                     </c:otherwise>
                 </c:choose>
-
-                <div class="mt-4 pt-4 border-top border-white-50">
-                    <p class="small fw-bold text-muted text-uppercase mb-3">This program includes:</p>
-                    <div class="d-flex flex-column gap-3">
-                        <div class="small text-muted"><i class="fa-solid fa-video text-primary me-2"></i> High-definition video modules</div>
-                        <div class="small text-muted"><i class="fa-solid fa-infinity text-primary me-2"></i> Full lifetime access</div>
-                        <div class="small text-muted"><i class="fa-solid fa-certificate text-primary me-2"></i> Professional certificate</div>
-                        <div class="small text-muted"><i class="fa-solid fa-desktop text-primary me-2"></i> Access on mobile and TV</div>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-function toggleModule(id, header) {
-    const el = document.getElementById(id);
-    const icon = header.querySelector('.transition-rotate');
-    if (el.style.display === 'none') {
-        el.style.display = 'block';
-        icon.style.transform = 'rotate(90deg)';
-    } else {
-        el.style.display = 'none';
-        icon.style.transform = 'rotate(0deg)';
+    function toggleModule(id, header) {
+        const content = document.getElementById(id);
+        const icon = header.querySelector('.fa-chevron-down');
+        const isHidden = window.getComputedStyle(content).display === "none";
+        
+        if (isHidden) {
+            content.style.display = "block";
+            header.classList.add('open');
+            icon.style.transform = "rotate(180deg)";
+        } else {
+            content.style.display = "none";
+            header.classList.remove('open');
+            icon.style.transform = "rotate(0deg)";
+        }
     }
-}
-
-const starItems = document.querySelectorAll('.star-item');
-let selected = 0;
-starItems.forEach((star, i) => {
-    star.addEventListener('mouseover', () => highlight(i + 1));
-    star.addEventListener('mouseout', () => highlight(selected));
-    star.addEventListener('click', () => {
-        selected = i + 1;
-        document.getElementById('ratingValue').value = selected;
-        highlight(selected);
-    });
-});
-
-function highlight(n) {
-    starItems.forEach((s, i) => s.style.color = i < n ? '#f6c23e' : 'rgba(255,255,255,0.2)');
-}
 </script>
 
 <%@ include file="../common/footer.jsp" %>

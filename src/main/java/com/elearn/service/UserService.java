@@ -61,7 +61,8 @@ public class UserService {
         
         return savedUser;
     }
- // UserService.java
+
+    // UserService.java
     public User findByEmail(String email) {
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -147,14 +148,30 @@ public class UserService {
 
     // --- Profile & Status Management ---
 
-    public User updateProfile(Long userId, String fullName, String bio, String phone, String profilePicture) {
+    // ✅ FIX: Parameter 'String profilePicture' changed to 'MultipartFile profileImage' to support real uploads
+    public User updateProfile(Long userId, String fullName, String bio, String phone, org.springframework.web.multipart.MultipartFile profileImage) throws Exception {
         User user = getUserById(userId);
         user.setFullName(fullName);
         user.setBio(bio);
         user.setPhone(phone);
-        if (profilePicture != null) {
-            user.setProfilePicture(profilePicture);
+        
+        // Profile Photo Upload Logic integration
+        if (profileImage != null && !profileImage.isEmpty()) {
+            String uploadDir = "uploads/profiles/";
+            java.nio.file.Path uploadPath = java.nio.file.Paths.get(uploadDir);
+
+            if (!java.nio.file.Files.exists(uploadPath)) {
+                java.nio.file.Files.createDirectories(uploadPath);
+            }
+
+            String fileName = System.currentTimeMillis() + "_" + profileImage.getOriginalFilename();
+            java.nio.file.Path filePath = uploadPath.resolve(fileName);
+
+            java.nio.file.Files.copy(profileImage.getInputStream(), filePath, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+
+            user.setProfilePicture("/" + uploadDir + fileName);
         }
+        
         return userRepository.save(user);
     }
 

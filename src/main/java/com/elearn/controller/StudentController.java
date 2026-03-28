@@ -5,12 +5,17 @@ import com.elearn.dto.ReviewDto;
 import com.elearn.model.*;
 import com.elearn.service.*;
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.util.List;
@@ -32,269 +37,191 @@ public class StudentController {
     private final CertificateService certificateService;
     private final AssignmentService assignmentService;
 
-    // ── Helper: Current User ──
+    // ── Helper: Get Current User ──
     private User getCurrentUser(UserDetails ud) {
         return userService.getUserByEmail(ud.getUsername());
     }
 
-    // ── Student Dashboard ──
+    // ── Dashboard ──
     @GetMapping("/dashboard")
     public String dashboard(@AuthenticationPrincipal UserDetails ud, Model model) {
         User student = getCurrentUser(ud);
         List<Enrollment> enrollments = enrollmentService.getStudentEnrollments(student);
-
-        long completedCount = enrollments.stream().filter(Enrollment::isCompleted).count();
-
         model.addAttribute("student", student);
         model.addAttribute("enrollments", enrollments);
         model.addAttribute("totalEnrolled", enrollments.size());
-        model.addAttribute("completedCourses", completedCount);
+        model.addAttribute("completedCourses", enrollments.stream().filter(Enrollment::isCompleted).count());
         model.addAttribute("certificates", certificateService.getCertificatesByUser(student));
-        
-        // Purana quizResults hata diya gaya hai kyunki ab sab kuch Assignment Submissions mein aayega
-
         return "student/dashboard";
     }
 
-    // ── My Courses ──
     @GetMapping("/my-courses")
     public String myCourses(@AuthenticationPrincipal UserDetails ud, Model model) {
-        User student = getCurrentUser(ud);
-        List<Enrollment> enrollments = enrollmentService.getStudentEnrollments(student);
-        model.addAttribute("enrollments", enrollments);
+        model.addAttribute("enrollments", enrollmentService.getStudentEnrollments(getCurrentUser(ud)));
         return "student/my-courses";
     }
 
     // ── Course Detail ──
-    @GetMapping("/courses/{courseId}")
+    @GetMapping("/course-detail/{courseId}")
     public String courseDetail(@PathVariable Long courseId, @AuthenticationPrincipal UserDetails ud, Model model) {
         User student = getCurrentUser(ud);
         Course course = courseService.getCourseById(courseId);
-
-        boolean enrolled = enrollmentService.isEnrolled(student, course);
         model.addAttribute("course", course);
-        model.addAttribute("isEnrolled", enrolled);
-        model.addAttribute("student", student);
-
+        model.addAttribute("isEnrolled", enrollmentService.isEnrolled(student, course));
+        model.addAttribute("avgRating", reviewService.getAverageRating(courseId));
+        model.addAttribute("reviews", reviewService.getCourseReviews(courseId));
         return "student/course-detail";
     }
 
-    // ── Payment Page ──
+    // ── Payment & Free Enrollment ──
     @GetMapping("/payment/{courseId}")
     public String paymentPage(@PathVariable Long courseId, @AuthenticationPrincipal UserDetails ud, Model model) {
         User student = getCurrentUser(ud);
         Course course = courseService.getCourseById(courseId);
-
-        if (enrollmentService.isEnrolled(student, course)) {
-            return "redirect:/student/learn/" + courseId;
-        }
-
+        if (enrollmentService.isEnrolled(student, course)) return "redirect:/student/learn/" + courseId;
         model.addAttribute("course", course);
         model.addAttribute("student", student);
         return "student/payment";
     }
 
-    // ── Process Payment ──
     @PostMapping("/payment/process")
-    public String processPayment(@ModelAttribute PaymentDto dto, @AuthenticationPrincipal UserDetails ud, RedirectAttributes redirectAttrs) {
-        User student = getCurrentUser(ud);
+    public String processPayment(@ModelAttribute PaymentDto dto, @AuthenticationPrincipal UserDetails ud, RedirectAttributes ra) {
         try {
-            paymentService.processPayment(student, dto);
-            redirectAttrs.addFlashAttribute("successMsg", "Payment successful! Course mein enrolled ho gaye.");
+            paymentService.processPayment(getCurrentUser(ud), dto);
+            ra.addFlashAttribute("successMsg", "Payment successful!");
             return "redirect:/student/learn/" + dto.getCourseId();
-        } catch (RuntimeException e) {
-            redirectAttrs.addFlashAttribute("errorMsg", e.getMessage());
+        } catch (Exception e) {
+            ra.addFlashAttribute("errorMsg", e.getMessage());
             return "redirect:/student/payment/" + dto.getCourseId();
         }
     }
 
-    // ── Free Enroll ──
     @PostMapping("/enroll/free/{courseId}")
-    public String enrollFree(@PathVariable Long courseId, @AuthenticationPrincipal UserDetails ud, RedirectAttributes redirectAttrs) {
-        User student = getCurrentUser(ud);
+    public String enrollFree(@PathVariable Long courseId, @AuthenticationPrincipal UserDetails ud, RedirectAttributes ra) {
         try {
-            enrollmentService.enrollStudent(student.getId(), courseId);
-            redirectAttrs.addFlashAttribute("successMsg", "Successfully enrolled!");
+            enrollmentService.enrollStudent(getCurrentUser(ud).getId(), courseId);
+            ra.addFlashAttribute("successMsg", "Enrolled successfully!");
             return "redirect:/student/learn/" + courseId;
-        } catch (RuntimeException e) {
-            redirectAttrs.addFlashAttribute("errorMsg", e.getMessage());
-            return "redirect:/courses/" + courseId;
+        } catch (Exception e) {
+            ra.addFlashAttribute("errorMsg", e.getMessage());
+            return "redirect:/student/course-detail/" + courseId;
         }
     }
 
-    // ── Learn Page ──
+    // ── Unified Classroom (Learn Page) ──
     @GetMapping("/learn/{courseId}")
-    public String learnPage(@PathVariable Long courseId, @RequestParam(required = false) Long lessonId, @AuthenticationPrincipal UserDetails ud, Model model) {
+    public String learnPage(@PathVariable Long courseId, 
+                            @RequestParam(required = false) Long lessonId,
+                            @RequestParam(required = false) Long assignmentId,
+                            @AuthenticationPrincipal UserDetails ud, Model model) {
+        
         User student = getCurrentUser(ud);
         Course course = courseService.getCourseById(courseId);
 
-        if (!enrollmentService.isEnrolled(student, course)) {
-            return "redirect:/courses/" + courseId;
-        }
+        if (!enrollmentService.isEnrolled(student, course)) return "redirect:/student/course-detail/" + courseId;
 
-        Enrollment enrollment = enrollmentService.getEnrollment(student, course);
         List<CourseModule> modules = course.getModules();
 
-        Lesson currentLesson = null;
-        if (lessonId != null) {
-            currentLesson = modules.stream()
-                .flatMap(m -> m.getLessons().stream())
-                .filter(l -> l.getId().equals(lessonId))
-                .findFirst()
-                .orElse(null);
+        if (assignmentId != null) {
+            Assignment currentAssignment = null;
+            for (CourseModule m : modules) {
+                for (Assignment a : m.getAssignments()) {
+                    if (a.getId().equals(assignmentId)) { currentAssignment = a; break; }
+                }
+                if (currentAssignment != null) break;
+            }
+            // Quiz Logic: Agar title mein Quiz hai toh quizMode true karein
+            if (currentAssignment != null && currentAssignment.getTitle().toLowerCase().contains("quiz")) {
+                model.addAttribute("quizMode", true);
+            }
+            model.addAttribute("currentAssignment", currentAssignment);
+        } else {
+            Lesson currentLesson = null;
+            if (lessonId != null) {
+                for (CourseModule m : modules) {
+                    for (Lesson l : m.getLessons()) {
+                        if (l.getId().equals(lessonId)) { currentLesson = l; break; }
+                    }
+                    if (currentLesson != null) break;
+                }
+            }
+            if (currentLesson == null && !modules.isEmpty() && !modules.get(0).getLessons().isEmpty()) {
+                currentLesson = modules.get(0).getLessons().get(0);
+            }
+            model.addAttribute("currentLesson", currentLesson);
         }
-        if (currentLesson == null && !modules.isEmpty() && !modules.get(0).getLessons().isEmpty()) {
-            currentLesson = modules.get(0).getLessons().get(0);
-        }
-
-        List<Progress> progressList = progressService.getProgressForEnrollment(enrollment);
 
         model.addAttribute("course", course);
         model.addAttribute("modules", modules);
-        model.addAttribute("currentLesson", currentLesson);
-        model.addAttribute("enrollment", enrollment);
-        model.addAttribute("progressList", progressList);
-        model.addAttribute("student", student);
-
+        model.addAttribute("enrollment", enrollmentService.getEnrollment(student, course));
         return "student/learn";
     }
 
-    // ── Mark Lesson Complete ──
     @PostMapping("/lesson/complete")
-    public String markComplete(@RequestParam Long lessonId, @RequestParam Long courseId, @AuthenticationPrincipal UserDetails ud, RedirectAttributes redirectAttrs) {
-        User student = getCurrentUser(ud);
-        progressService.markLessonComplete(student, lessonId);
-        redirectAttrs.addFlashAttribute("successMsg", "Lesson complete mark ho gaya!");
+    public String markComplete(@RequestParam Long lessonId, @RequestParam Long courseId, @AuthenticationPrincipal UserDetails ud) {
+        progressService.markLessonComplete(getCurrentUser(ud), lessonId);
         return "redirect:/student/learn/" + courseId + "?lessonId=" + lessonId;
     }
 
-    // ==========================================
-    // ── NEW QUIZ LOGIC (UPDATED ARCHITECTURE) ──
-    // ==========================================
+    @PostMapping("/assignment/submit")
+    public String submitAssignment(@RequestParam Long assignmentId, @RequestParam Long courseId, 
+                                   @RequestParam("file") MultipartFile file, @AuthenticationPrincipal UserDetails ud, RedirectAttributes ra) {
+        try {
+            assignmentService.submitAssignment(getCurrentUser(ud), assignmentId, "File: " + file.getOriginalFilename());
+            ra.addFlashAttribute("successMsg", "Submitted: " + file.getOriginalFilename());
+        } catch (Exception e) {
+            ra.addFlashAttribute("errorMsg", e.getMessage());
+        }
+        return "redirect:/student/learn/" + courseId + "?assignmentId=" + assignmentId;
+    }
 
+    // ── Quiz (Based on Assignment ID) ──
     @GetMapping("/quiz/{assignmentId}")
     public String quizPage(@PathVariable Long assignmentId, @AuthenticationPrincipal UserDetails ud, Model model) {
-        User student = getCurrentUser(ud);
-        Assignment assignment = assignmentService.getAssignmentById(assignmentId);
-        List<QuizQuestion> questions = quizService.getQuestionsByAssignment(assignmentId);
-
-        model.addAttribute("assignment", assignment);
-        model.addAttribute("questions", questions);
-        model.addAttribute("student", student);
-        
+        model.addAttribute("assignment", assignmentService.getAssignmentById(assignmentId));
+        model.addAttribute("questions", quizService.getQuestionsByAssignment(assignmentId));
         return "student/quiz"; 
     }
 
     @PostMapping("/quiz/submit")
-    public String submitQuiz(@RequestParam Long assignmentId, @RequestParam Map<String, String> answers, @AuthenticationPrincipal UserDetails ud, RedirectAttributes redirectAttrs) {
+    public String submitQuiz(@RequestParam Long assignmentId, @RequestParam Map<String, String> answers, @AuthenticationPrincipal UserDetails ud, RedirectAttributes ra) {
         User student = getCurrentUser(ud);
         try {
             List<QuizQuestion> questions = quizService.getQuestionsByAssignment(assignmentId);
-            int totalMarks = 0;
-            int obtainedMarks = 0;
-
-            // Auto-Grader Logic
+            int score = 0;
             for (QuizQuestion q : questions) {
-                totalMarks += q.getMarks();
-                String studentAnswer = answers.get("q_" + q.getId()); // Form se answer aayega
-                if (studentAnswer != null && studentAnswer.equals(q.getCorrectOption())) {
-                    obtainedMarks += q.getMarks();
-                }
+                if (q.getCorrectOption().equals(answers.get("q_" + q.getId()))) score += q.getMarks();
             }
-
-            // Save as Assignment Submission
-            String submissionText = "Auto-Graded Quiz Score: " + obtainedMarks + " / " + totalMarks;
-            assignmentService.submitAssignment(student, assignmentId, submissionText);
-
-            redirectAttrs.addFlashAttribute("successMsg", "Quiz submitted successfully! You scored: " + obtainedMarks + " out of " + totalMarks);
-        } catch (RuntimeException e) {
-            redirectAttrs.addFlashAttribute("errorMsg", "Failed to submit quiz: " + e.getMessage());
+            assignmentService.submitAssignment(student, assignmentId, "Quiz Score: " + score);
+            ra.addFlashAttribute("successMsg", "Quiz submitted! Score: " + score);
+        } catch (Exception e) {
+            ra.addFlashAttribute("errorMsg", e.getMessage());
         }
         return "redirect:/student/dashboard";
     }
 
-    // ── Submit Assignment (Writing Task) ──
-    @PostMapping("/assignment/submit")
-    public String submitAssignment(@RequestParam Long assignmentId, @RequestParam String submissionText, @AuthenticationPrincipal UserDetails ud, RedirectAttributes redirectAttrs) {
-        User student = getCurrentUser(ud);
-        try {
-            assignmentService.submitAssignment(student, assignmentId, submissionText);
-            redirectAttrs.addFlashAttribute("successMsg", "Assignment submitted!");
-        } catch (RuntimeException e) {
-            redirectAttrs.addFlashAttribute("errorMsg", e.getMessage());
-        }
-        return "redirect:/student/dashboard";
-    }
-
-    // ── Add Review ──
-    @PostMapping("/review/add")
-    public String addReview(@ModelAttribute ReviewDto dto, @AuthenticationPrincipal UserDetails ud, RedirectAttributes redirectAttrs) {
-        User student = getCurrentUser(ud);
-        try {
-            reviewService.addReview(student, dto);
-            redirectAttrs.addFlashAttribute("successMsg", "Review submit ho gaya!");
-        } catch (RuntimeException e) {
-            redirectAttrs.addFlashAttribute("errorMsg", e.getMessage());
-        }
-        return "redirect:/courses/" + dto.getCourseId();
-    }
-
-    // ── My Certificates ──
+    // ── Certificates & Profile ──
     @GetMapping("/certificates")
     public String myCertificates(@AuthenticationPrincipal UserDetails ud, Model model) {
-        User student = getCurrentUser(ud);
-        model.addAttribute("certificates", certificateService.getCertificatesByUser(student));
+        model.addAttribute("certificates", certificateService.getCertificatesByUser(getCurrentUser(ud)));
         return "student/certificates";
     }
 
-    // ── Certificate Verify (Public) ──
-    @GetMapping("/certificate/verify/{certNumber}")
-    public String verifyCertificate(@PathVariable String certNumber, Model model) {
-        certificateService.verifyCertificate(certNumber).ifPresentOrElse(
-            cert -> {
-                model.addAttribute("certificate", cert);
-                model.addAttribute("valid", true);
-            },
-            () -> model.addAttribute("valid", false)
-        );
-        return "student/certificate-verify";
-    }
-
-    // ── Profile Page ──
     @GetMapping("/profile")
     public String profilePage(@AuthenticationPrincipal UserDetails ud, Model model) {
         User student = getCurrentUser(ud);
         model.addAttribute("student", student);
-        model.addAttribute("totalEnrolled", enrollmentService.getStudentEnrollments(student).size());
-        model.addAttribute("completedCourses", enrollmentService.getStudentEnrollments(student).stream().filter(Enrollment::isCompleted).count());
         model.addAttribute("certificates", certificateService.getCertificatesByUser(student));
         return "student/profile";
     }
 
-    // ── Update Profile ──
     @PostMapping("/profile/update")
-    public String updateProfile(@AuthenticationPrincipal UserDetails ud, @RequestParam String fullName, @RequestParam(required = false) String phone, @RequestParam(required = false) String bio, RedirectAttributes ra) {
+    public String updateProfile(@AuthenticationPrincipal UserDetails ud, @RequestParam String fullName, 
+                                @RequestParam String bio, @RequestParam String phone, 
+                                @RequestParam MultipartFile profileImage, RedirectAttributes ra) {
         try {
-            User student = getCurrentUser(ud);
-            userService.updateProfile(student.getId(), fullName, phone, bio, null);
-            ra.addFlashAttribute("successMsg", "Profile successfully updated!");
-        } catch (Exception e) {
-            ra.addFlashAttribute("errorMsg", "Update failed: " + e.getMessage());
-        }
-        return "redirect:/student/profile";
-    }
-
-    // ── Change Password ──
-    @PostMapping("/profile/change-password")
-    public String changePassword(@AuthenticationPrincipal UserDetails ud, @RequestParam String currentPassword, @RequestParam String newPassword, @RequestParam String confirmPassword, RedirectAttributes ra) {
-        try {
-            if (!newPassword.equals(confirmPassword)) {
-                ra.addFlashAttribute("errorMsg", "New passwords match nahi kar rahe!");
-                return "redirect:/student/profile";
-            }
-            User student = getCurrentUser(ud);
-            userService.changePassword(student.getId(), currentPassword, newPassword);
-            ra.addFlashAttribute("successMsg", "Password successfully changed!");
+            userService.updateProfile(getCurrentUser(ud).getId(), fullName, bio, phone, profileImage);
+            ra.addFlashAttribute("successMsg", "Profile updated!");
         } catch (Exception e) {
             ra.addFlashAttribute("errorMsg", e.getMessage());
         }

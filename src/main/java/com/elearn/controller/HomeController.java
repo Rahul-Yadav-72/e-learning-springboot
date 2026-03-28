@@ -69,6 +69,8 @@ public class HomeController {
         model.addAttribute("msg", "View Resolver is working fine!");
         return "test"; // Path: WEB-INF/views/test.jsp
     }
+    
+   
 
     @GetMapping("/access-denied")
     public String accessDenied() {
