@@ -43,11 +43,10 @@ public class SecurityConfig {
         return config.getAuthenticationManager();
     }
 
-    // 1. In paths ko security filter se puri tarah bahar rakho
     @Bean
     public WebSecurityCustomizer webSecurityCustomizer() {
         return (web) -> web.ignoring().requestMatchers(
-            "/static/**", "/css/**", "/js/**", "/images/**", "/favicon.ico", "/error", "/WEB-INF/**"
+            "/static/**", "/css/**", "/js/**", "/images/**", "/favicon.ico", "/error", "/WEB-INF/**", "/uploads/**"
         );
     }
 
@@ -57,11 +56,10 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .authenticationProvider(authenticationProvider())
             .authorizeHttpRequests(auth -> auth
-                // Publicly accessible paths
-                .requestMatchers("/", "/home", "/auth/**", "/testjsp").permitAll()
+                // ✅ UPDATE: Added "/certificate/verify/**" to allow public verification
+                .requestMatchers("/", "/home", "/auth/**", "/testjsp", "/courses/**", "/certificate/verify/**").permitAll()
                 .requestMatchers("/perform_login").permitAll()
                 
-                // Role-based access (ensure roles in DB start with ROLE_ or prefix is handled)
                 .requestMatchers("/admin/**").hasRole("ADMIN")
                 .requestMatchers("/teacher/**").hasRole("TEACHER")
                 .requestMatchers("/profile/**").authenticated()
@@ -87,7 +85,6 @@ public class SecurityConfig {
                 .clearAuthentication(true)
                 .permitAll()
             )
-            // Session handling to avoid some common redirect issues
             .sessionManagement(session -> session
                 .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
             )
@@ -98,8 +95,6 @@ public class SecurityConfig {
         return http.build();
     }
     
- 
-
     @Bean
     public CustomAuthSuccessHandler customAuthSuccessHandler() {
         return new CustomAuthSuccessHandler();
