@@ -31,21 +31,16 @@ public class CourseService {
     // ── Create Course ──
     public Course createCourse(CourseCreateDto dto, String instructorEmail) {
         User instructor = userRepository.findByEmail(instructorEmail)
-                .orElseThrow(() ->
-                        new RuntimeException("Instructor not found"));
+                .orElseThrow(() -> new RuntimeException("Instructor not found"));
 
-        Category category = categoryRepository
-                .findById(dto.getCategoryId())
-                .orElseThrow(() ->
-                        new RuntimeException("Category not found"));
+        Category category = categoryRepository.findById(dto.getCategoryId())
+                .orElseThrow(() -> new RuntimeException("Category not found"));
 
         String thumbnailUrl = null;
-        if (dto.getThumbnailFile() != null
-                && !dto.getThumbnailFile().isEmpty()) {
+        if (dto.getThumbnailFile() != null && !dto.getThumbnailFile().isEmpty()) {
             thumbnailUrl = saveFile(dto.getThumbnailFile(), "thumbnails/");
         }
 
-        // new + setters use karo — builder() Lombok issue ke liye
         Course course = new Course();
         course.setTitle(dto.getTitle());
         course.setDescription(dto.getDescription());
@@ -68,15 +63,11 @@ public class CourseService {
     public Course updateCourse(Long courseId, CourseCreateDto dto) {
         Course course = getCourseById(courseId);
 
-        Category category = categoryRepository
-                .findById(dto.getCategoryId())
-                .orElseThrow(() ->
-                        new RuntimeException("Category not found"));
+        Category category = categoryRepository.findById(dto.getCategoryId())
+                .orElseThrow(() -> new RuntimeException("Category not found"));
 
-        if (dto.getThumbnailFile() != null
-                && !dto.getThumbnailFile().isEmpty()) {
-            course.setThumbnailUrl(
-                    saveFile(dto.getThumbnailFile(), "thumbnails/"));
+        if (dto.getThumbnailFile() != null && !dto.getThumbnailFile().isEmpty()) {
+            course.setThumbnailUrl(saveFile(dto.getThumbnailFile(), "thumbnails/"));
         }
 
         course.setTitle(dto.getTitle());
@@ -98,14 +89,11 @@ public class CourseService {
         courseRepository.save(course);
     }
 
-    // ← TeacherController deleteCourse(Long, User) call karta tha
+    // ── Delete (Teacher Check) ──
     public void deleteCourse(Long courseId, User currentUser) {
         Course course = getCourseById(courseId);
-        // Sirf apna course delete kar sake teacher
-        if (!course.getInstructor().getId()
-                .equals(currentUser.getId())) {
-            throw new RuntimeException(
-                    "Aap sirf apna course delete kar sakte hain");
+        if (!course.getInstructor().getId().equals(currentUser.getId())) {
+            throw new RuntimeException("Aap sirf apna course delete kar sakte hain");
         }
         courseRepository.deleteById(courseId);
     }
@@ -114,15 +102,14 @@ public class CourseService {
         courseRepository.deleteById(courseId);
     }
 
-    // ← TeacherController getCoursesByTeacher(User) call karta tha
+    // ── Getters ──
     public List<Course> getCoursesByTeacher(User teacher) {
         return courseRepository.findByInstructor(teacher);
     }
 
     public List<Course> getCoursesByInstructor(String email) {
         User instructor = userRepository.findByEmail(email)
-                .orElseThrow(() ->
-                        new RuntimeException("Instructor not found"));
+                .orElseThrow(() -> new RuntimeException("Instructor not found"));
         return courseRepository.findByInstructor(instructor);
     }
 
@@ -133,12 +120,17 @@ public class CourseService {
         courseRepository.save(course);
     }
 
-    // ── Read ──
+    // ── Read Methods ──
     @Transactional(readOnly = true)
     public Course getCourseById(Long id) {
         return courseRepository.findById(id)
-                .orElseThrow(() ->
-                        new RuntimeException("Course not found: " + id));
+                .orElseThrow(() -> new RuntimeException("Course not found: " + id));
+    }
+
+    // ✅ FIX: Added this method to solve Controller error
+    @Transactional(readOnly = true)
+    public List<Course> getAllApprovedCourses() {
+        return courseRepository.findByApprovedTrue();
     }
 
     @Transactional(readOnly = true)
@@ -146,7 +138,6 @@ public class CourseService {
         return courseRepository.findByPublishedTrueAndApprovedTrue();
     }
 
-    // ← Simple search (Controllers se String only aa raha hai)
     @Transactional(readOnly = true)
     public List<Course> searchCourses(String keyword) {
         return courseRepository.searchCourses(keyword);
@@ -154,14 +145,12 @@ public class CourseService {
 
     @Transactional(readOnly = true)
     public List<Course> getCoursesByCategory(Long categoryId) {
-        return courseRepository
-                .findByCategoryIdAndPublishedTrueAndApprovedTrue(categoryId);
+        return courseRepository.findByCategoryIdAndPublishedTrueAndApprovedTrue(categoryId);
     }
 
     @Transactional(readOnly = true)
     public List<Course> getCoursesByLevel(CourseLevel level) {
-        return courseRepository
-                .findByLevelAndPublishedTrueAndApprovedTrue(level);
+        return courseRepository.findByLevelAndPublishedTrueAndApprovedTrue(level);
     }
 
     @Transactional(readOnly = true)
@@ -173,37 +162,27 @@ public class CourseService {
     public List<Course> getPendingApprovalCourses() {
         return courseRepository.findByApprovedFalse();
     }
- // CourseService.java mein yeh method add karo
- // updateCourse(Long, CourseCreateDto, User) — teacher check ke saath
 
- public Course updateCourse(Long courseId,
-                             CourseCreateDto dto,
-                             User currentUser) {
-     Course course = getCourseById(courseId);
+    // ── Update with Teacher Check ──
+    public Course updateCourse(Long courseId, CourseCreateDto dto, User currentUser) {
+        Course course = getCourseById(courseId);
+        if (!course.getInstructor().getId().equals(currentUser.getId())) {
+            throw new RuntimeException("Aap sirf apna course edit kar sakte hain");
+        }
+        return updateCourse(courseId, dto);
+    }
 
-     // Sirf apna course edit kar sake
-     if (!course.getInstructor().getId()
-             .equals(currentUser.getId())) {
-         throw new RuntimeException(
-             "Aap sirf apna course edit kar sakte hain");
-     }
-
-     return updateCourse(courseId, dto); // existing method call
- }
-
+    // ── File Save Helper ──
     private String saveFile(MultipartFile file, String subDir) {
         try {
             String uploadDir = "uploads/" + subDir;
-            String fileName = UUID.randomUUID()
-                    + "_" + file.getOriginalFilename();
+            String fileName = UUID.randomUUID() + "_" + file.getOriginalFilename();
             Path filePath = Paths.get(uploadDir + fileName);
             Files.createDirectories(filePath.getParent());
-            Files.copy(file.getInputStream(), filePath,
-                    StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
             return "/" + uploadDir + fileName;
         } catch (IOException e) {
-            throw new RuntimeException(
-                    "File save nahi ho saka: " + e.getMessage());
+            throw new RuntimeException("File save nahi ho saka: " + e.getMessage());
         }
     }
 }

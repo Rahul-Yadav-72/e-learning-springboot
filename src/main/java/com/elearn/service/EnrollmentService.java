@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -22,18 +23,22 @@ public class EnrollmentService {
     private final UserRepository userRepository;
     private final EmailService emailService;
 
+    // ✅ Dashboard aur My Courses ke liye zaroori method
+    public List<Course> getStudentCourses(User student) {
+        return enrollmentRepository.findByStudent(student)
+                .stream()
+                .map(Enrollment::getCourse)
+                .collect(Collectors.toList());
+    }
+
     public Enrollment enrollStudent(Long studentId, Long courseId) {
         User student = userRepository.findById(studentId)
-                .orElseThrow(() ->
-                        new RuntimeException("Student not found"));
+                .orElseThrow(() -> new RuntimeException("Student not found"));
         Course course = courseRepository.findById(courseId)
-                .orElseThrow(() ->
-                        new RuntimeException("Course not found"));
+                .orElseThrow(() -> new RuntimeException("Course not found"));
 
-        if (enrollmentRepository.existsByStudentAndCourse(
-                student, course)) {
-            throw new RuntimeException(
-                    "Aap already enrolled hain");
+        if (enrollmentRepository.existsByStudentAndCourse(student, course)) {
+            throw new RuntimeException("Aap already enrolled hain");
         }
 
         Enrollment enrollment = new Enrollment();
@@ -52,62 +57,48 @@ public class EnrollmentService {
         return enrollment;
     }
 
-    // ← Controllers User + Course pass karte hain
     public boolean isEnrolled(User student, Course course) {
-        return enrollmentRepository
-                .existsByStudentAndCourse(student, course);
+        return enrollmentRepository.existsByStudentAndCourse(student, course);
     }
 
-    // ← Controllers Long, Long bhi pass karte hain
     public boolean isEnrolled(Long studentId, Long courseId) {
         User student = userRepository.findById(studentId)
-                .orElseThrow(() ->
-                        new RuntimeException("Student not found"));
+                .orElseThrow(() -> new RuntimeException("Student not found"));
         Course course = courseRepository.findById(courseId)
-                .orElseThrow(() ->
-                        new RuntimeException("Course not found"));
-        return enrollmentRepository
-                .existsByStudentAndCourse(student, course);
+                .orElseThrow(() -> new RuntimeException("Course not found"));
+        return enrollmentRepository.existsByStudentAndCourse(student, course);
     }
 
-    // ← StudentController User pass karta tha
     public List<Enrollment> getStudentEnrollments(User student) {
         return enrollmentRepository.findByStudent(student);
     }
 
     public List<Enrollment> getStudentEnrollments(Long studentId) {
         User student = userRepository.findById(studentId)
-                .orElseThrow(() ->
-                        new RuntimeException("Student not found"));
+                .orElseThrow(() -> new RuntimeException("Student not found"));
         return enrollmentRepository.findByStudent(student);
     }
 
-    // ← TeacherController Course object pass karta tha
     public List<Enrollment> getCourseEnrollments(Course course) {
         return enrollmentRepository.findByCourse(course);
     }
 
     public List<Enrollment> getCourseEnrollments(Long courseId) {
         Course course = courseRepository.findById(courseId)
-                .orElseThrow(() ->
-                        new RuntimeException("Course not found"));
+                .orElseThrow(() -> new RuntimeException("Course not found"));
         return enrollmentRepository.findByCourse(course);
     }
 
-    // ← StudentController User + Course pass karta tha
     public Enrollment getEnrollment(User student, Course course) {
-        return enrollmentRepository
-                .findByStudentAndCourse(student, course)
-                .orElseThrow(() ->
-                        new RuntimeException("Enrollment not found"));
+        return enrollmentRepository.findByStudentAndCourse(student, course)
+                .orElseThrow(() -> new RuntimeException("Enrollment not found"));
     }
 
     public Enrollment getEnrollment(Long studentId, Long courseId) {
-        return enrollmentRepository
-                .findByStudentIdAndCourseId(studentId, courseId)
-                .orElseThrow(() ->
-                        new RuntimeException("Enrollment not found"));
+        return enrollmentRepository.findByStudentIdAndCourseId(studentId, courseId)
+                .orElseThrow(() -> new RuntimeException("Enrollment not found"));
     }
+
     public long getTotalStudentsForTeacher(Long teacherId) {
         return enrollmentRepository.countTotalStudentsByTeacherId(teacherId);
     }
