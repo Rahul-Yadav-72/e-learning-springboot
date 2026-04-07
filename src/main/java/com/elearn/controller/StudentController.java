@@ -227,4 +227,25 @@ public class StudentController {
         }
         return "redirect:/student/profile";
     }
+    @PostMapping("/profile/change-password")
+    public String changePassword(@AuthenticationPrincipal UserDetails ud, 
+                                 @RequestParam String currentPassword, 
+                                 @RequestParam String newPassword, 
+                                 @RequestParam String confirmPassword, 
+                                 RedirectAttributes ra) {
+        try {
+            // Check if new passwords match
+            if (!newPassword.equals(confirmPassword)) {
+                throw new RuntimeException("New passwords do not match!");
+            }
+            
+            User student = getCurrentUser(ud);
+            userService.changePassword(student.getId(), currentPassword, newPassword);
+            
+            ra.addFlashAttribute("successMsg", "Password changed successfully!");
+        } catch (Exception e) {
+            ra.addFlashAttribute("errorMsg", "Failed: " + e.getMessage());
+        }
+        return "redirect:/student/profile";
+    }
 }

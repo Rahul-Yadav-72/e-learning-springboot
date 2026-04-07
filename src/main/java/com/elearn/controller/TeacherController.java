@@ -16,6 +16,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import java.math.BigDecimal;
 import java.security.Principal;
 import java.util.List;
+import java.util.Map;
 
 @Controller
 @RequestMapping("/teacher")
@@ -33,20 +34,12 @@ public class TeacherController {
     private final PaymentService paymentService;
     private final CategoryService categoryService;
 
-    // ── Global Attributes ──
-    @ModelAttribute
-    public void addGlobalAttributes(Model model, @AuthenticationPrincipal UserDetails ud) {
-        if (ud != null) {
-            User teacher = userService.getUserByEmail(ud.getUsername());
-            model.addAttribute("teacher", teacher);
-        }
-    }
-
+    // ── Helper: Get Current Logged-in Teacher ──
     private User getCurrentUser(UserDetails ud) {
         return userService.getUserByEmail(ud.getUsername());
     }
 
-    // ── 1. Dashboard ──
+    // ── 1. Dashboard & Analytics ──
     @GetMapping("/dashboard")
     public String dashboard(@AuthenticationPrincipal UserDetails ud, Model model) {
         User teacher = getCurrentUser(ud);
@@ -54,10 +47,13 @@ public class TeacherController {
         long totalStudents = enrollmentService.getTotalStudentsForTeacher(teacher.getId());
         BigDecimal earnings = paymentService.getTeacherEarnings(teacher);
 
+        model.addAttribute("teacher", teacher);
         model.addAttribute("courses", courses);
         model.addAttribute("totalCourses", courses.size());
         model.addAttribute("totalStudents", totalStudents);
         model.addAttribute("earnings", (earnings != null) ? earnings : BigDecimal.ZERO);
+        model.addAttribute("pageTitle", "Instructor Dashboard");
+        
         return "teacher/dashboard";
     }
 
@@ -66,6 +62,7 @@ public class TeacherController {
     public String manageCourses(@AuthenticationPrincipal UserDetails ud, Model model) {
         User teacher = getCurrentUser(ud);
         model.addAttribute("courses", courseService.getCoursesByTeacher(teacher));
+        model.addAttribute("pageTitle", "Manage Courses");
         return "teacher/manage-courses";
     }
 
@@ -73,6 +70,7 @@ public class TeacherController {
     public String addCoursePage(Model model) {
         model.addAttribute("courseDto", new CourseCreateDto());
         model.addAttribute("categories", categoryService.getAllCategories());
+        model.addAttribute("pageTitle", "Create Course");
         return "teacher/add-course";
     }
 
@@ -80,7 +78,7 @@ public class TeacherController {
     public String saveOrUpdateCourse(@ModelAttribute CourseCreateDto dto, @AuthenticationPrincipal UserDetails ud, RedirectAttributes ra) {
         try {
             Course course = courseService.createCourse(dto, ud.getUsername());
-            ra.addFlashAttribute("successMsg", "Course saved! Add your modules now.");
+            ra.addFlashAttribute("successMsg", "Course saved! Now build your curriculum.");
             return "redirect:/teacher/courses/" + course.getId() + "/modules";
         } catch (Exception e) {
             ra.addFlashAttribute("errorMsg", "Error: " + e.getMessage());
@@ -90,21 +88,9 @@ public class TeacherController {
 
     @GetMapping("/courses/edit/{courseId}")
     public String editCoursePage(@PathVariable Long courseId, Model model) {
-        Course course = courseService.getCourseById(courseId);
-        model.addAttribute("course", course);
+        model.addAttribute("course", courseService.getCourseById(courseId));
         model.addAttribute("categories", categoryService.getAllCategories());
         return "teacher/add-course";
-    }
-
-    @PostMapping("/courses/delete/{courseId}")
-    public String deleteCourse(@PathVariable Long courseId, @AuthenticationPrincipal UserDetails ud, RedirectAttributes ra) {
-        try {
-            courseService.deleteCourse(courseId, getCurrentUser(ud));
-            ra.addFlashAttribute("successMsg", "Course deleted.");
-        } catch (Exception e) {
-            ra.addFlashAttribute("errorMsg", "Failed: " + e.getMessage());
-        }
-        return "redirect:/teacher/courses";
     }
 
     // ── 3. Curriculum (Modules & Lessons) ──
@@ -126,17 +112,6 @@ public class TeacherController {
         return "redirect:/teacher/courses/" + courseId + "/modules";
     }
 
-    @PostMapping("/modules/update/{moduleId}")
-    public String updateModule(@PathVariable Long moduleId, @RequestParam String title, @RequestParam Long courseId, RedirectAttributes ra) {
-        try {
-            moduleService.updateModule(moduleId, title);
-            ra.addFlashAttribute("successMsg", "Module updated successfully!");
-        } catch (Exception e) {
-            ra.addFlashAttribute("errorMsg", "Update failed: " + e.getMessage());
-        }
-        return "redirect:/teacher/courses/" + courseId + "/modules";
-    }
-
     @PostMapping("/modules/{moduleId}/lessons/add")
     public String addLesson(@PathVariable Long moduleId, @RequestParam String title, @RequestParam int durationMinutes,
                             @RequestParam(required = false) String videoUrl, @RequestParam(required = false) String content,
@@ -153,24 +128,14 @@ public class TeacherController {
         }
     }
 
-    // ── 4. Assessments Center ──
+    // ── 4. Assessments & Quiz Builder ──
     @GetMapping("/assignments")
-    public String showAssignmentsCenter(Model model, Principal principal) {
-        User teacher = userService.getUserByEmail(principal.getName());
-        List<Assignment> allTeacherAssignments = new java.util.ArrayList<>();
-        List<CourseModule> teacherModules = new java.util.ArrayList<>();
-        List<Course> courses = courseService.getCoursesByTeacher(teacher);
-        
-        for(Course course : courses) {
-            List<CourseModule> modules = moduleService.getModulesByCourse(course.getId());
-            for(CourseModule module : modules) {
-                allTeacherAssignments.addAll(module.getAssignments());
-                teacherModules.add(module);
-            }
-        }
-        model.addAttribute("activeAssignments", allTeacherAssignments);
+    public String showAssignmentsCenter(@AuthenticationPrincipal UserDetails ud, Model model) {
+        User teacher = getCurrentUser(ud);
+        List<Assignment> assignments = assignmentService.getAssignmentsByTeacher(teacher);
+        model.addAttribute("activeAssignments", assignments);
         model.addAttribute("submissions", assignmentService.getSubmissionsByTeacher(teacher));
-        model.addAttribute("modules", teacherModules);
+        model.addAttribute("pageTitle", "Assessments");
         return "teacher/assignments"; 
     }
 
@@ -180,35 +145,17 @@ public class TeacherController {
                                  @RequestParam(required = false) String description, RedirectAttributes ra) {
         try {
             Assignment savedAssignment = assignmentService.createAssignment(title, description, java.time.LocalDate.parse(dueDate), maxMarks, moduleId, type);
-            ra.addFlashAttribute("successMsg", "Assessment published!");
-            if ("QUIZ".equalsIgnoreCase(type)) {
-                return "redirect:/teacher/assignments/" + savedAssignment.getId() + "/questions";
-            }
+            ra.addFlashAttribute("successMsg", "Published successfully!");
+            if ("QUIZ".equalsIgnoreCase(type)) return "redirect:/teacher/assignments/" + savedAssignment.getId() + "/questions";
         } catch (Exception e) {
-            ra.addFlashAttribute("errorMsg", "Failed to save: " + e.getMessage());
+            ra.addFlashAttribute("errorMsg", "Failed: " + e.getMessage());
         }
         return "redirect:/teacher/assignments"; 
     }
 
-    @PostMapping("/assignments/delete/{assignmentId}")
-    public String deleteAssignment(@PathVariable Long assignmentId, RedirectAttributes ra) {
-        try {
-            Assignment assignment = assignmentService.getAssignmentById(assignmentId);
-            Long courseId = assignment.getModule().getCourse().getId();
-            assignmentService.deleteAssignment(assignmentId);
-            ra.addFlashAttribute("successMsg", "Assignment deleted.");
-            return "redirect:/teacher/courses/" + courseId + "/modules";
-        } catch (Exception e) {
-            ra.addFlashAttribute("errorMsg", "Failed: " + e.getMessage());
-            return "redirect:/teacher/assignments";
-        }
-    }
-
-    // ── 5. Quiz Builder ──
     @GetMapping("/assignments/{assignmentId}/questions")
     public String showQuizBuilder(@PathVariable Long assignmentId, Model model) {
-        Assignment assignment = assignmentService.getAssignmentById(assignmentId);
-        model.addAttribute("assignment", assignment);
+        model.addAttribute("assignment", assignmentService.getAssignmentById(assignmentId));
         model.addAttribute("questions", quizService.getQuestionsByAssignment(assignmentId));
         return "teacher/quiz-builder"; 
     }
@@ -220,55 +167,63 @@ public class TeacherController {
                                   @RequestParam Integer marks, RedirectAttributes ra) {
         try {
             quizService.addQuestion(assignmentId, questionText, optionA, optionB, optionC, optionD, correctOption, marks);
-            ra.addFlashAttribute("successMsg", "Question added!");
+            ra.addFlashAttribute("successMsg", "Question Added!");
         } catch (Exception e) {
-            ra.addFlashAttribute("errorMsg", "Failed: " + e.getMessage());
+            ra.addFlashAttribute("errorMsg", "Error: " + e.getMessage());
         }
         return "redirect:/teacher/assignments/" + assignmentId + "/questions";
     }
 
-    @PostMapping("/assignments/{assignmentId}/questions/delete/{questionId}")
-    public String deleteQuizQuestion(@PathVariable Long assignmentId, @PathVariable Long questionId, RedirectAttributes ra) {
-        try {
-            quizService.deleteQuestion(questionId);
-            ra.addFlashAttribute("successMsg", "Question deleted.");
-        } catch (Exception e) {
-            ra.addFlashAttribute("errorMsg", "Error deleting.");
-        }
-        return "redirect:/teacher/assignments/" + assignmentId + "/questions";
+    // ── 5. Revenue & Payments ──
+    @GetMapping({"/earnings", "/revenue"})   
+    public String detailedEarnings(@AuthenticationPrincipal UserDetails ud, Model model) {
+        User teacher = getCurrentUser(ud);
+        BigDecimal totalEarnings = paymentService.getTeacherEarnings(teacher);
+        
+        model.addAttribute("transactions", paymentService.getTeacherPayments(teacher));
+        model.addAttribute("totalEarnings", (totalEarnings != null) ? totalEarnings : BigDecimal.ZERO);
+        model.addAttribute("pageTitle", "Revenue"); 
+        
+        return "teacher/revenue"; 
     }
-
-    // ── 6. Grading & Students ──
-    @PostMapping("/assignments/grade/{submissionId}")
-    public String gradeAssignment(@PathVariable Long submissionId, @RequestParam int marks, @RequestParam String feedback, RedirectAttributes ra) {
-        assignmentService.gradeSubmission(submissionId, marks, feedback);
-        ra.addFlashAttribute("successMsg", "Graded!");
-        return "redirect:/teacher/assignments";
-    }
-
+// ── 6. Grading & Students ──
+    
+    /**
+     * Shows the list of all students enrolled in the teacher's courses.
+     * Maps to: /teacher/courses/students
+     */
     @GetMapping("/courses/students")
     public String viewAllStudents(@AuthenticationPrincipal UserDetails ud, Model model) {
         User teacher = getCurrentUser(ud);
-        model.addAttribute("enrollments", enrollmentService.getEnrollmentsByTeacher(teacher));
-        return "teacher/enrolled-students";
+        
+        // Fetch enrollments for all courses owned by this teacher
+        List<Enrollment> enrollments = enrollmentService.getEnrollmentsByTeacher(teacher);
+        
+        model.addAttribute("enrollments", enrollments);
+        model.addAttribute("totalStudents", enrollments.size());
+        model.addAttribute("pageTitle", "Manage Students"); // Sidebar active state ke liye
+        
+        return "teacher/enrolled-students"; // Ensure kijiye ki 'enrolled-students.jsp' file hai
     }
 
-    // ── 7. Revenue & Profile ──
-    // ✅ FIX: Changed from "/revenue" to "/earnings" to perfectly match sidebar.jsp link
-    @GetMapping("/earnings")   
-    public String detailedEarnings(@AuthenticationPrincipal UserDetails ud, Model model) {
-        User teacher = getCurrentUser(ud);
-        model.addAttribute("transactions", paymentService.getTeacherPayments(teacher));
-        model.addAttribute("totalEarnings", paymentService.getTeacherEarnings(teacher));
-        return "teacher/revenue"; // Yeh wahi revenue.jsp open karega
+    @PostMapping("/assignments/grade/{submissionId}")
+    public String gradeAssignment(@PathVariable Long submissionId, 
+                                 @RequestParam int marks, 
+                                 @RequestParam String feedback, 
+                                 RedirectAttributes ra) {
+        assignmentService.gradeSubmission(submissionId, marks, feedback);
+        ra.addFlashAttribute("successMsg", "Student graded successfully!");
+        return "redirect:/teacher/assignments";
     }
 
+    // ── 6. Profile Management ──
     @GetMapping("/profile")
-    public String profilePage() {
+    public String profilePage(@AuthenticationPrincipal UserDetails ud, Model model) {
+        model.addAttribute("teacher", getCurrentUser(ud));
+        model.addAttribute("pageTitle", "Teacher Profile");
         return "teacher/profile";
     }
 
-    // ✅ FIX: Added try-catch and MultipartFile support for Profile image upload
     @PostMapping("/profile/update")
     public String updateProfile(@AuthenticationPrincipal UserDetails ud, 
                                 @RequestParam String fullName,
@@ -277,7 +232,8 @@ public class TeacherController {
                                 @RequestParam(required = false) MultipartFile profileImage,
                                 RedirectAttributes ra) {
         try {
-            userService.updateProfile(getCurrentUser(ud).getId(), fullName, bio, phone, profileImage);
+            User teacher = getCurrentUser(ud);
+            userService.updateProfile(teacher.getId(), fullName, bio, phone, profileImage);
             ra.addFlashAttribute("successMsg", "Profile Updated Successfully!");
         } catch (Exception e) {
             ra.addFlashAttribute("errorMsg", "Failed to update profile: " + e.getMessage());

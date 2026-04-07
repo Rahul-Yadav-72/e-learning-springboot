@@ -13,7 +13,6 @@
 
     .sidebar-sticky-wrapper { position: sticky; top: 100px; z-index: 10; }
 
-    /* ── Cleaned & Fixed Sidebar Panel ── */
     .sidebar-panel {
         background: rgba(15, 23, 42, 0.4);
         backdrop-filter: blur(15px);
@@ -21,7 +20,7 @@
         border-radius: 24px;
         overflow: hidden;
         box-shadow: 0 20px 40px rgba(0,0,0,0.3);
-        min-width: 260px; /* Fixed width to prevent squishing */
+        min-width: 260px;
         width: 100%;
     }
 
@@ -29,7 +28,7 @@
         padding: 25px 20px;
         border-bottom: 1px solid rgba(255, 255, 255, 0.05);
         display: flex; align-items: center; gap: 15px;
-        white-space: nowrap; /* Prevents text from breaking */
+        white-space: nowrap;
     }
 
     .sidebar-header-icon {
@@ -38,21 +37,19 @@
         font-size: 1.1rem; color: white; flex-shrink: 0;
     }
 
-    /* Role Specific Glows */
     .student-glow { background: linear-gradient(135deg, var(--student-main), #4338ca); box-shadow: 0 0 20px rgba(99, 102, 241, 0.3); }
     .teacher-glow { background: linear-gradient(135deg, var(--teacher-main), #059669); box-shadow: 0 0 20px rgba(16, 185, 129, 0.3); }
     .admin-glow { background: linear-gradient(135deg, var(--admin-main), #b91c1c); box-shadow: 0 0 20px rgba(239, 68, 68, 0.3); }
 
     .sidebar-menu { padding: 15px; }
 
-    /* ── Fixed Menu Items ── */
     .sb-item {
         display: flex; align-items: center; gap: 12px;
         padding: 12px 16px; border-radius: 14px;
         font-size: 0.9rem; font-weight: 600;
         color: #94a3b8; text-decoration: none;
         transition: 0.3s; margin-bottom: 6px;
-        white-space: nowrap; /* Keeps text on one line */
+        white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
     }
@@ -63,15 +60,12 @@
         background: rgba(255, 255, 255, 0.03); transition: 0.3s; flex-shrink: 0;
     }
 
-    /* Student Hover/Active */
     .sb-item.student:hover, .sb-item.student.active { background: rgba(99, 102, 241, 0.1); color: white; }
     .sb-item.student.active .sb-icon, .sb-item.student:hover .sb-icon { background: var(--student-main); color: white; box-shadow: 0 0 10px rgba(99, 102, 241, 0.3); }
 
-    /* Teacher Hover/Active */
     .sb-item.teacher:hover, .sb-item.teacher.active { background: rgba(16, 185, 129, 0.1); color: white; }
     .sb-item.teacher.active .sb-icon, .sb-item.teacher:hover .sb-icon { background: var(--teacher-main); color: white; box-shadow: 0 0 10px rgba(16, 185, 129, 0.3); }
 
-    /* Admin Hover/Active */
     .sb-item.admin:hover, .sb-item.admin.active { background: rgba(239, 68, 68, 0.1); color: white; }
     .sb-item.admin.active .sb-icon, .sb-item.admin:hover .sb-icon { background: var(--admin-main); color: white; box-shadow: 0 0 10px rgba(239, 68, 68, 0.3); }
 
@@ -83,6 +77,7 @@
         padding: 12px 16px; border-radius: 14px;
         color: #ef4444; font-weight: 700; font-size: 0.9rem;
         transition: 0.3s; cursor: pointer; white-space: nowrap;
+        text-align: left;
     }
     .sb-logout-btn:hover { background: rgba(239, 68, 68, 0.1); transform: translateX(5px); }
 </style>
@@ -113,10 +108,7 @@
                     <span class="sb-icon"><i class="fa-solid fa-compass"></i></span> Explore New
                 </a>
                 
-                <%-- ✅ ADDED ASSIGNMENTS LINK --%>
-                <a href="${cp}/student/assignments" class="sb-item student ${pageTitle == 'My Assignments' ? 'active' : ''}">
-                    <span class="sb-icon"><i class="fa-solid fa-list-check"></i></span> Assignments
-                </a>
+                <%-- ❌ REMOVED ASSIGNMENTS LINK AS REQUESTED --%>
                 
                 <a href="${cp}/student/certificates" class="sb-item student ${pageTitle == 'My Certificates' ? 'active' : ''}">
                     <span class="sb-icon"><i class="fa-solid fa-medal"></i></span> Certificates
@@ -126,7 +118,8 @@
                 </a>
 
                 <div class="sb-divider"></div>
-                <form action="${cp}/logout" method="post">
+                <%-- ✅ FIXED LOGOUT ACTION (Using /auth/logout to match controller) --%>
+                <form action="${cp}/auth/logout" method="post">
                     <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
                     <button type="submit" class="sb-logout-btn">
                         <i class="fa-solid fa-right-from-bracket"></i> Sign Out
@@ -150,7 +143,6 @@
             </div>
 
             <div class="sidebar-menu">
-                <%-- Added Active Logic for Teacher --%>
                 <a href="${cp}/teacher/dashboard" class="sb-item teacher ${pageTitle == 'Instructor Dashboard' ? 'active' : ''}">
                     <span class="sb-icon"><i class="fa-solid fa-chart-line"></i></span> Analytics
                 </a>
@@ -165,7 +157,7 @@
                 </a>
 
                 <div class="sb-divider"></div>
-                <form action="${cp}/logout" method="post">
+                <form action="${cp}/auth/logout" method="post">
                     <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
                     <button type="submit" class="sb-logout-btn">
                         <i class="fa-solid fa-power-off"></i> Logout
@@ -189,7 +181,6 @@
             </div>
 
             <div class="sidebar-menu">
-                <%-- Added Active Logic for Admin --%>
                 <a href="${cp}/admin/dashboard" class="sb-item admin ${pageTitle == 'Admin Dashboard' ? 'active' : ''}">
                     <span class="sb-icon"><i class="fa-solid fa-grid-2"></i></span> Dashboard
                 </a>
@@ -204,7 +195,7 @@
                 </a>
 
                 <div class="sb-divider"></div>
-                <form action="${cp}/logout" method="post">
+                <form action="${cp}/auth/logout" method="post">
                     <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
                     <button type="submit" class="sb-logout-btn">
                         <i class="fa-solid fa-lock"></i> Sign Out
