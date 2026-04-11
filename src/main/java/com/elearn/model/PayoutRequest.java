@@ -23,6 +23,11 @@ public class PayoutRequest {
     @JoinColumn(name = "teacher_id", nullable = false)
     private User teacher;
 
+    // ✅ ADDED: Course relationship taaki tracking ho sake
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "course_id")
+    private Course course;
+
     @Column(nullable = false)
     private BigDecimal amount;
 

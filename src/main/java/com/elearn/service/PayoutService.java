@@ -16,6 +16,12 @@ public class PayoutService {
 
     private final PayoutRequestRepository payoutRepository;
 
+    // ✅ Dashboard ke liye: Pending requests ka count (Duplicate hataya gaya)
+    @Transactional(readOnly = true)
+    public long getPendingPayoutsCount() {
+        return payoutRepository.countByStatus(PayoutStatus.PENDING);
+    }
+
     // Admin ke liye saari requests laana
     @Transactional(readOnly = true)
     public List<PayoutRequest> getAllRequests() {

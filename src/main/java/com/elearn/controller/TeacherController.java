@@ -127,6 +127,35 @@ public class TeacherController {
             return "redirect:/teacher/courses/" + moduleId + "/modules";
         }
     }
+    
+    @PostMapping("/modules/update/{moduleId}")
+    public String updateModule(@PathVariable Long moduleId, 
+                               @RequestParam String title, 
+                               @RequestParam Long courseId, 
+                               RedirectAttributes ra) {
+        try {
+            moduleService.updateModule(moduleId, title);
+            ra.addFlashAttribute("successMsg", "Module title updated successfully!");
+        } catch (Exception e) {
+            ra.addFlashAttribute("errorMsg", "Update failed: " + e.getMessage());
+        }
+        // Wapas usi course ke modules page par bhejna zaroori hai
+        return "redirect:/teacher/courses/" + courseId + "/modules";
+    }
+
+    // ── Delete Module (Optional but Recommended) ──
+    @PostMapping("/modules/delete/{moduleId}")
+    public String deleteModule(@PathVariable Long moduleId, 
+                               @RequestParam Long courseId, 
+                               RedirectAttributes ra) {
+        try {
+            moduleService.deleteModule(moduleId);
+            ra.addFlashAttribute("successMsg", "Module removed successfully.");
+        } catch (Exception e) {
+            ra.addFlashAttribute("errorMsg", "Delete failed: " + e.getMessage());
+        }
+        return "redirect:/teacher/courses/" + courseId + "/modules";
+    }
 
     // ── 4. Assessments & Quiz Builder ──
     @GetMapping("/assignments")
@@ -204,6 +233,24 @@ public class TeacherController {
         model.addAttribute("pageTitle", "Manage Students"); // Sidebar active state ke liye
         
         return "teacher/enrolled-students"; // Ensure kijiye ki 'enrolled-students.jsp' file hai
+    }
+    
+    @PostMapping("/assignments/delete/{assignmentId}")
+    public String deleteAssignment(@PathVariable Long assignmentId, RedirectAttributes ra) {
+        try {
+            // Assessment fetch karna taaki courseId mil sake redirect ke liye
+            Assignment assignment = assignmentService.getAssignmentById(assignmentId);
+            Long courseId = assignment.getModule().getCourse().getId();
+            
+            // Delete logic
+            assignmentService.deleteAssignment(assignmentId);
+            
+            ra.addFlashAttribute("successMsg", "Assessment deleted successfully.");
+            return "redirect:/teacher/courses/" + courseId + "/modules";
+        } catch (Exception e) {
+            ra.addFlashAttribute("errorMsg", "Failed to delete: " + e.getMessage());
+            return "redirect:/teacher/assignments";
+        }
     }
 
     @PostMapping("/assignments/grade/{submissionId}")

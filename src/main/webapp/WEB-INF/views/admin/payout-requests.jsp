@@ -108,10 +108,9 @@
                                     <tr>
                                         <td><span class="req-id">#${req.id}</span></td>
                                         <td>
-                                            <%-- FIXED: 'teacher' changed to 'instructor' to match your entity --%>
-                                            <div class="teacher-name">${req.instructor.fullName}</div>
-                                            <div class="teacher-email">${req.instructor.email}</div>
-                                        </td>
+    <div class="teacher-name">${req.teacher.fullName}</div>
+    <div class="teacher-email">${req.teacher.email}</div>
+</td>
                                         <td><div class="amount-text">₹${req.amount}</div></td>
                                         <td>
                                             <%-- FIXED: LocalDateTime handling --%>

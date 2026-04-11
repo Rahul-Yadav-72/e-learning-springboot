@@ -1,11 +1,6 @@
 package com.elearn.controller;
 
-import com.elearn.model.Course;
-import com.elearn.model.Payment;
-import com.elearn.model.PayoutRequest;
-import com.elearn.model.Review;
-import com.elearn.model.SupportTicket;
-import com.elearn.model.User;
+import com.elearn.model.*;
 import com.elearn.model.enums.Role;
 import com.elearn.service.*;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +13,9 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.math.BigDecimal;
 import java.security.Principal;
+import java.util.Collections;
 import java.util.List;
 
 @Controller
@@ -31,13 +28,12 @@ public class AdminController {
     private final UserService userService;
     private final CourseService courseService;
     private final PaymentService paymentService;
-    private final EnrollmentService enrollmentService;
     private final CategoryService categoryService;
     private final ReviewService reviewService;
     private final SupportTicketService supportTicketService;
     private final PayoutService payoutService;
 
-    // ── Global Attributes (Zaroori for Navbar) ──
+    // ── Global Attributes ──
     @ModelAttribute
     public void addGlobalAttributes(Model model, @AuthenticationPrincipal UserDetails ud) {
         if (ud != null) {
@@ -49,56 +45,44 @@ public class AdminController {
     // ── 1. Admin Dashboard ──
     @GetMapping("/dashboard")
     public String dashboard(Model model) {
-        // Stats for Dashboard Cards
         model.addAttribute("totalUsers", userService.getAllUsers().size());
-        
-        // ✅ Yahan error fix kar diya gaya hai
         model.addAttribute("totalCourses", courseService.getAllPublishedCourses().size());
-        
-        model.addAttribute("platformRevenue", 0); // Replace with paymentService method later
-        model.addAttribute("pendingPayouts", 0);
+        model.addAttribute("platformRevenue", paymentService.getTotalPlatformRevenue());
+        model.addAttribute("pendingPayouts", payoutService.getPendingPayoutsCount());
 
-        // Fetch Recent Activity Data
         List<User> allUsers = userService.getAllUsers();
-        
-        // ✅ Yahan bhi error fix kar diya gaya hai
-        List<Course> allCourses = courseService.getAllPublishedCourses();
-
-        java.util.Collections.reverse(allUsers);
-        java.util.Collections.reverse(allCourses);
-        
+        Collections.reverse(allUsers);
         model.addAttribute("recentUsers", allUsers.stream().limit(5).toList());
-        model.addAttribute("recentCourses", allCourses.stream().limit(5).toList());
-
+        
+        model.addAttribute("pageTitle", "Admin Dashboard");
         return "admin/dashboard";
     }
 
-    // ── 2. Manage Users ──
+    // ── 2. User Management ──
     @GetMapping("/manage-users") 
     public String manageUsers(@RequestParam(required = false) String role, Model model) {
-        List<User> users;
-        if (role != null && !role.isBlank()) {
-            users = userService.getUsersByRole(Role.valueOf(role.toUpperCase()));
-            model.addAttribute("selectedRole", role);
-        } else {
-            users = userService.getAllUsers();
-        }
+        List<User> users = (role != null && !role.isBlank()) ? 
+                          userService.getUsersByRole(Role.valueOf(role.toUpperCase())) : 
+                          userService.getAllUsers();
         model.addAttribute("users", users);
+        model.addAttribute("selectedRole", role);
         return "admin/manage-users";
     }
 
+ // ── Fixed User Toggle Status Mapping (Just in case) ──
     @PostMapping("/users/{userId}/toggle-status")
     public String toggleUserStatus(@PathVariable Long userId, RedirectAttributes ra) {
         userService.toggleUserStatus(userId);
-        ra.addFlashAttribute("successMsg", "User status updated successfully!");
-        return "redirect:/admin/manage-users"; 
+        ra.addFlashAttribute("successMsg", "User access updated!");
+        return "redirect:/admin/manage-users";
     }
-
+ // ── Fixed User Delete Mapping ──
+    // Mapping matches: /admin/users/{userId}/delete
     @PostMapping("/users/{userId}/delete")
     public String deleteUser(@PathVariable Long userId, RedirectAttributes ra) {
         userService.deleteUser(userId);
-        ra.addFlashAttribute("successMsg", "User has been removed from the platform.");
-        return "redirect:/admin/manage-users"; 
+        ra.addFlashAttribute("successMsg", "User removed from platform.");
+        return "redirect:/admin/manage-users";
     }
 
     // ── 3. Category Management ──
@@ -109,190 +93,122 @@ public class AdminController {
     }
 
     @PostMapping("/categories/add")
-    public String addCategory(@RequestParam String name, @RequestParam(required = false) String description, RedirectAttributes ra) {
-        try {
-            categoryService.createCategory(name, description, null); // Ya jo bhi method aapke service mein ho
-            ra.addFlashAttribute("successMsg", "New category added successfully!");
-        } catch (Exception e) {
-            ra.addFlashAttribute("errorMsg", "Failed to add category.");
-        }
-        return "redirect:/admin/manage-categories"; 
+    public String addCategory(@RequestParam String name, @RequestParam String description, RedirectAttributes ra) {
+        categoryService.createCategory(name, description, null);
+        ra.addFlashAttribute("successMsg", "Category created!");
+        return "redirect:/admin/manage-categories";
     }
 
     @PostMapping("/categories/update/{id}")
     public String updateCategory(@PathVariable Long id, @RequestParam String name, @RequestParam String description, RedirectAttributes ra) {
         categoryService.updateCategory(id, name, description);
-        ra.addFlashAttribute("successMsg", "Category updated successfully!");
+        ra.addFlashAttribute("successMsg", "Category updated!");
         return "redirect:/admin/manage-categories";
     }
 
     @PostMapping("/categories/delete/{id}")
     public String deleteCategory(@PathVariable Long id, RedirectAttributes ra) {
-        categoryService.deleteCategory(id);
-        ra.addFlashAttribute("successMsg", "Category deleted successfully!");
+        try {
+            categoryService.deleteCategory(id);
+            ra.addFlashAttribute("successMsg", "Category deleted!");
+        } catch (Exception e) {
+            ra.addFlashAttribute("errorMsg", "Conflict: Category linked to courses.");
+        }
         return "redirect:/admin/manage-categories";
     }
 
-    
-    
- // ── 4. Course Management ──
- // ── 4. Course Management (Updated with Debugging) ──
+    // ── 4. Course Control ──
     @GetMapping("/manage-courses")
     public String manageCourses(@RequestParam(required = false) String filter, Model model) {
-        log.info("Admin accessing manage-courses with filter: {}", filter);
+        List<Course> courses = "pending".equals(filter) ? 
+                              courseService.getPendingApprovalCourses() : 
+                              courseService.getAllPublishedCourses();
+        model.addAttribute("courses", courses);
+        model.addAttribute("filter", filter);
+        return "admin/manage-courses"; 
+    }
+
+ // ── Fixed Course Approve Mapping ──
+    
+    // Mapping matches: /admin/courses/{courseId}/approve
+    @PostMapping("/courses/{courseId}/approve")
+    public String approveCourse(@PathVariable Long courseId, RedirectAttributes ra) {
+        courseService.approveCourse(courseId);
+        ra.addFlashAttribute("successMsg", "Course is now LIVE!");
+        return "redirect:/admin/manage-courses?filter=pending";
+    }
+
+    @PostMapping("/courses/delete/{courseId}")
+    public String deleteCourse(@PathVariable Long courseId, RedirectAttributes ra) {
+        courseService.deleteCourse(courseId);
+        ra.addFlashAttribute("successMsg", "Course removed.");
+        return "redirect:/admin/manage-courses";
+    }
+    
+
+    // ── 5. Payouts, Reviews & Support ──
+//    @GetMapping("/payout-requests")
+//    public String payoutRequests(Model model) {
+//        model.addAttribute("payoutRequests", payoutService.getAllRequests());
+//        return "admin/payout-requests"; // <-- Ye line JSP file dhoondh rahi hai
+//    }
+    @GetMapping("/payout-requests")
+    public String payoutRequests(Model model) {
+        List<PayoutRequest> requests = payoutService.getAllRequests();
         
-        try {
-            List<Course> courses;
-            if ("pending".equals(filter)) {
-                courses = courseService.getPendingApprovalCourses(); 
-            } else {
-                courses = courseService.getAllPublishedCourses();
-            }
-            
-            // Debugging: Console mein check karein ki data aa raha hai ya nahi
-            System.out.println("Courses fetched: " + (courses != null ? courses.size() : "null"));
-            
-            model.addAttribute("courses", courses);
-            model.addAttribute("filter", filter);
-            
-            return "admin/manage-courses"; 
-            
-        } catch (Exception e) {
-            log.error("Error in manage-courses: ", e);
-            // Agar JSP load nahi ho raha, toh ye error browser mein dikhega
-            return "error"; 
-        }
+        // Debugging ke liye: Console mein check karein data aa raha hai ya nahi
+        System.out.println("Total Payout Requests: " + requests.size());
+        
+        model.addAttribute("payoutRequests", requests);
+        return "admin/payout-requests"; // Match with: /WEB-INF/views/admin/payout-requests.jsp
+    }
+
+    @PostMapping("/payouts/{id}/approve") // ID ko beech mein rakhein
+    public String approvePayout(@PathVariable Long id, RedirectAttributes ra) {
+        payoutService.approvePayout(id);
+        ra.addFlashAttribute("successMsg", "Payout marked as PAID.");
+        return "redirect:/admin/payout-requests";
+    }
+
+    /** ✅ FIX: manage-reviews mapping added to resolve 404 */
+    @GetMapping("/manage-reviews")
+    public String manageReviews(Model model) {
+        model.addAttribute("reviews", reviewService.getAllReviews());
+        return "admin/manage-reviews";
+    }
+
+    @GetMapping("/support-tickets")
+    public String supportTickets(Model model) {
+        model.addAttribute("tickets", supportTicketService.getAllTickets());
+        return "admin/support-tickets";
+    }
+
+    @PostMapping("/support-tickets/resolve/{id}")
+    public String resolveTicket(@PathVariable Long id, RedirectAttributes ra) {
+        supportTicketService.resolveTicket(id);
+        ra.addFlashAttribute("successMsg", "Ticket resolved!");
+        return "redirect:/admin/support-tickets";
+    }
+
+    // ── 6. Profile, Payments & Settings ──
+    @GetMapping("/manage-payments")
+    public String managePayments(Model model) {
+        model.addAttribute("payments", paymentService.getAllPayments());
+        return "admin/manage-payments";
+    }
+
+    /** ✅ FIX: settings mapping added to resolve 404 */
+    @GetMapping("/settings")
+    public String settings(Model model) {
+        model.addAttribute("pageTitle", "Platform Settings");
+        return "admin/settings";
     }
 
     @GetMapping("/profile")
     public String showAdminProfile(Model model, Principal principal) {
-        // Current logged in user ka email nikalne ke liye
-        String email = principal.getName();
-        
-        // Database se user ki poori details fetch karein
-        User currentUser = userService.findByEmail(email);
-        
-        // JSP ko data bhejne ke liye
-        model.addAttribute("user", currentUser); // profile.jsp is 'user' object ko use karegi
-        model.addAttribute("admin", currentUser); // Navbar ke liye
-        
-        // Aapka file path: WEB-INF/views/common/profile.jsp
-        // Agar prefix/suffix set hai toh sirf "common/profile" likhein
+        User admin = userService.getUserByEmail(principal.getName());
+        model.addAttribute("user", admin);
         return "common/profile"; 
     }
-    @PostMapping("/courses/{courseId}/approve")
-    public String approveCourse(@PathVariable Long courseId, RedirectAttributes ra) {
-        courseService.approveCourse(courseId); // Agar method hai to
-        ra.addFlashAttribute("successMsg", "Course has been approved!");
-        return "redirect:/admin/manage-courses";
-    }
     
-    @GetMapping("/manage-payments")
-    public String managePayments(Model model) {
-        // Jab Payment Service puri ban jayegi tab isko uncomment karenge
-         List<Payment> payments = paymentService.getAllPayments();
-         model.addAttribute("payments", payments);
-        return "admin/manage-payments";
-    }
- // ── Payout Requests ──
-    @GetMapping("/payout-requests")
-    public String payoutRequests(Model model) {
-        List<PayoutRequest> requests = payoutService.getAllRequests();
-        model.addAttribute("payoutRequests", requests);
-        return "admin/payout-requests";
-    }
-
-    @PostMapping("/payouts/{id}/approve")
-    public String approvePayout(@PathVariable Long id, RedirectAttributes ra) {
-        payoutService.approvePayout(id);
-        ra.addFlashAttribute("successMsg", "Payout marked as Paid successfully!");
-        return "redirect:/admin/payout-requests";
-    }
-
-    @PostMapping("/payouts/{id}/reject")
-    public String rejectPayout(@PathVariable Long id, RedirectAttributes ra) {
-        payoutService.rejectPayout(id);
-        ra.addFlashAttribute("errorMsg", "Payout request rejected.");
-        return "redirect:/admin/payout-requests";
-    }
-    
- // ── 5. Settings ──
-    @GetMapping("/settings")
-    public String settings(Model model) {
-        // Platform settings jaise commission rate abhi static JSPs mein hain. 
-        // Future mein ise database se fetch kiya ja sakta hai.
-        return "admin/settings";
-    }
-
-    @PostMapping("/settings/update-platform")
-    public String updatePlatformSettings(RedirectAttributes ra) {
-        // Logic for updating global settings will go here
-        ra.addFlashAttribute("successMsg", "Platform settings updated successfully!");
-        return "redirect:/admin/settings";
-    }
-
-    @PostMapping("/settings/update-password")
-    public String updateAdminPassword(RedirectAttributes ra) {
-        // Logic for updating password will go here
-        ra.addFlashAttribute("successMsg", "Security settings updated!");
-        return "redirect:/admin/settings";
-    }
- // ── 6. Support Tickets ──
-    @GetMapping("/support-tickets")
-    public String supportTickets(@RequestParam(required = false) String status, Model model) {
-        List<SupportTicket> tickets;
-        
-        // ✅ Yahan 'supportTicketService' use kiya hai
-        if (status != null && !status.isBlank()) {
-            tickets = supportTicketService.getTicketsByStatus(status);
-        } else {
-            tickets = supportTicketService.getAllTickets();
-        }
-        
-        model.addAttribute("tickets", tickets);
-        return "admin/support-tickets";
-    }
-
-    @PostMapping("/support-tickets/{id}/resolve")
-    public String resolveTicket(@PathVariable Long id, RedirectAttributes ra) {
-        
-        // ✅ Yahan bhi 'supportTicketService' use kiya hai
-        supportTicketService.resolveTicket(id);
-        
-        ra.addFlashAttribute("successMsg", "Support ticket has been marked as resolved!");
-        return "redirect:/admin/support-tickets";
-    }
-
-    
- // ── 7. Course Reviews ──
-    @GetMapping("/manage-reviews")
-    public String manageReviews(Model model) {
-        // Jab Review Service ban jayegi, tab list yahan se jayegi
-        List<Review> reviews = reviewService.getAllReviews();
-        model.addAttribute("reviews", reviews);
-        return "admin/manage-reviews";
-    }
-
-    @PostMapping("/manage-reviews/{id}/delete")
-    public String deleteReview(@PathVariable Long id, RedirectAttributes ra) {
-        // reviewService.deleteReview(id);
-        ra.addFlashAttribute("successMsg", "Review deleted successfully.");
-        return "redirect:/admin/manage-reviews";
-    }
-    
- // ── 8. Analytics & Reports ──
-    @GetMapping("/analytics")
-    public String analytics(Model model) {
-        // Stats
-        model.addAttribute("totalStudents", userService.countByRole(Role.STUDENT));
-        model.addAttribute("totalTeachers", userService.countByRole(Role.TEACHER));
-        model.addAttribute("categories", categoryService.getAllCategories());
-        
-        // Payment Service banne ke baad isme logic lagayenge
-        int currentYear = java.time.LocalDate.now().getYear();
-        model.addAttribute("monthlyRevenue", paymentService.getMonthlyRevenue(currentYear));
-        model.addAttribute("totalRevenue", 0); // Placeholder
-        
-        return "admin/analytics";
-    }
 }

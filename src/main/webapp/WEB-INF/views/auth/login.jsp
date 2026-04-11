@@ -194,19 +194,7 @@ body::after{content:'';position:fixed;width:500px;height:500px;border-radius:50%
                 </button>
             </form>
 
-            <div class="divdr"><span>Demo Credentials</span></div>
-            <div class="demo">
-                <div class="dh"><i class="fa-solid fa-key"></i> Click to auto-fill</div>
-                <div class="dr dis" onclick="fill('student@elearn.com','Student@123','s')">
-                    <div class="dl"><i class="fa-solid fa-user-graduate"></i><span><strong>Student</strong> student@elearn.com</span></div>
-                </div>
-                <div class="dr dit" onclick="fill('teacher@elearn.com','Teacher@123','t')">
-                    <div class="dl"><i class="fa-solid fa-chalkboard-user"></i><span><strong>Teacher</strong> teacher@elearn.com</span></div>
-                </div>
-                <div class="dr dia" onclick="fill('admin@elearn.com','Admin@123','a')">
-                    <div class="dl"><i class="fa-solid fa-shield-halved"></i><span><strong>Admin</strong> admin@elearn.com</span></div>
-                </div>
-            </div>
+            
 
             <p class="lf">Don't have an account?&nbsp;<a href="${pageContext.request.contextPath}/auth/register">Create Account</a></p>
         </div>

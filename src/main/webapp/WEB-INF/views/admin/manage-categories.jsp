@@ -34,7 +34,6 @@
 
         .content-card { background: var(--surface); border-radius: 24px; padding: 30px; border: 1px solid var(--border); box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
 
-        /* --- UI FIX: White Rows with Dark Text --- */
         .custom-table { border-collapse: separate; border-spacing: 0 10px; margin-bottom: 0;}
         .custom-table thead th { border: none; color: var(--text-dim); font-size: 0.75rem; text-transform: uppercase; padding: 0 15px 15px; }
         
@@ -58,8 +57,9 @@
         .action-btn:hover { transform: translateY(-2px); }
 
         /* Modal Styles */
-        .modal-content { background: var(--surface); color: white; border: 1px solid var(--border); border-radius: 24px; }
+        .modal-content { background: var(--surface); color: white; border: 1px solid var(--border); border-radius: 24px; overflow: hidden;}
         .custom-input { background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border); border-radius: 12px; color: white; padding: 12px; width: 100%; margin-bottom: 20px; outline: none;}
+        .custom-input:focus { border-color: var(--primary); }
         .custom-label { font-size: 0.8rem; font-weight: 700; color: var(--text-dim); margin-bottom: 8px; display: block; }
     </style>
 </head>
@@ -73,8 +73,16 @@
 </nav>
 
 <div class="container-fluid px-lg-5 px-3 mb-5">
-    <div class="row g-4 mt-2">
-        
+    <div class="mt-3">
+        <c:if test="${not empty successMsg}">
+            <div class="alert alert-success rounded-4 border-0 shadow-sm">${successMsg}</div>
+        </c:if>
+        <c:if test="${not empty errorMsg}">
+            <div class="alert alert-danger rounded-4 border-0 shadow-sm">${errorMsg}</div>
+        </c:if>
+    </div>
+
+    <div class="row g-4 mt-1">
         <div class="col-lg-3">
             <div class="sidebar shadow-sm">
                 <div class="portal-label mb-3" style="font-size:0.65rem; color:var(--text-dim); font-weight:800;">MASTER CONTROL</div>
@@ -130,7 +138,7 @@
                                         </td>
                                         <td>
                                             <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-2 py-1">
-                                                ${cat.courses.size()} Courses
+                                                ${cat.courses != null ? cat.courses.size() : 0} Courses
                                             </span>
                                         </td>
                                         <td class="text-end">
@@ -139,6 +147,7 @@
                                                     <i class="fa-solid fa-pen-to-square"></i>
                                                 </button>
                                                 <form action="${pageContext.request.contextPath}/admin/categories/delete/${cat.id}" method="post" class="m-0">
+                                                    <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
                                                     <button type="submit" class="action-btn delete" onclick="return confirm('Delete category?')">
                                                         <i class="fa-solid fa-trash"></i>
                                                     </button>
@@ -156,14 +165,67 @@
     </div>
 </div>
 
-<%-- Modals yahan rahenge (Add/Edit) --%>
+<div class="modal fade" id="addCategoryModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0 p-4 pb-0">
+                <h5 class="modal-title fw-bold">Create New Category</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="${pageContext.request.contextPath}/admin/categories/add" method="post">
+                <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
+                <div class="modal-body p-4">
+                    <label class="custom-label">NAME</label>
+                    <input type="text" name="name" class="custom-input" placeholder="e.g. Data Science" required>
+                    
+                    <label class="custom-label">DESCRIPTION</label>
+                    <textarea name="description" class="custom-input" rows="3" placeholder="Brief details..."></textarea>
+                </div>
+                <div class="modal-footer border-0 p-4 pt-0">
+                    <button type="submit" class="btn btn-primary w-100 rounded-pill py-2 fw-bold">Add Category</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editCategoryModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0 p-4 pb-0">
+                <h5 class="modal-title fw-bold">Edit Category</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editForm" method="post">
+                <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
+                <div class="modal-body p-4">
+                    <label class="custom-label">NAME</label>
+                    <input type="text" name="name" id="editName" class="custom-input" required>
+                    
+                    <label class="custom-label">DESCRIPTION</label>
+                    <textarea name="description" id="editDesc" class="custom-input" rows="3"></textarea>
+                </div>
+                <div class="modal-footer border-0 p-4 pt-0">
+                    <button type="submit" class="btn btn-emerald text-white w-100 rounded-pill py-2 fw-bold">Update Details</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
     function openEditModal(id, name, desc) {
+        // Form field fill karein
         document.getElementById('editName').value = name;
         document.getElementById('editDesc').value = (desc && desc !== 'null') ? desc : '';
+        
+        // URL path update karein (Backend endpoint: /admin/categories/update/{id})
         document.getElementById('editForm').action = '${pageContext.request.contextPath}/admin/categories/update/' + id;
-        new bootstrap.Modal(document.getElementById('editCategoryModal')).show();
+        
+        // Modal ko manual show karein
+        var editModal = new bootstrap.Modal(document.getElementById('editCategoryModal'));
+        editModal.show();
     }
 </script>
 </body>
