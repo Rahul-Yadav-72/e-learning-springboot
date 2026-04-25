@@ -34,6 +34,7 @@
 
         .content-card { background: var(--surface); border-radius: 24px; padding: 30px; border: 1px solid var(--border); box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
 
+        /* --- UI Table Styles --- */
         .custom-table { border-collapse: separate; border-spacing: 0 10px; margin-bottom: 0;}
         .custom-table thead th { border: none; color: var(--text-dim); font-size: 0.75rem; text-transform: uppercase; padding: 0 15px 15px; }
         
@@ -57,9 +58,10 @@
         .action-btn:hover { transform: translateY(-2px); }
 
         /* Modal Styles */
-        .modal-content { background: var(--surface); color: white; border: 1px solid var(--border); border-radius: 24px; overflow: hidden;}
-        .custom-input { background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border); border-radius: 12px; color: white; padding: 12px; width: 100%; margin-bottom: 20px; outline: none;}
-        .custom-input:focus { border-color: var(--primary); }
+        .modal-content { background: var(--surface); color: white; border: 1px solid var(--border); border-radius: 24px; padding: 15px;}
+        .modal-header { border-bottom: 1px solid var(--border); }
+        .custom-input { background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border); border-radius: 12px; color: white; padding: 12px; width: 100%; margin-bottom: 20px; outline: none; transition: 0.3s;}
+        .custom-input:focus { border-color: var(--primary); background: rgba(255, 255, 255, 0.08); }
         .custom-label { font-size: 0.8rem; font-weight: 700; color: var(--text-dim); margin-bottom: 8px; display: block; }
     </style>
 </head>
@@ -73,26 +75,17 @@
 </nav>
 
 <div class="container-fluid px-lg-5 px-3 mb-5">
-    <div class="mt-3">
-        <c:if test="${not empty successMsg}">
-            <div class="alert alert-success rounded-4 border-0 shadow-sm">${successMsg}</div>
-        </c:if>
-        <c:if test="${not empty errorMsg}">
-            <div class="alert alert-danger rounded-4 border-0 shadow-sm">${errorMsg}</div>
-        </c:if>
-    </div>
-
-    <div class="row g-4 mt-1">
+    <div class="row g-4 mt-2">
+        
         <div class="col-lg-3">
             <div class="sidebar shadow-sm">
                 <div class="portal-label mb-3" style="font-size:0.65rem; color:var(--text-dim); font-weight:800;">MASTER CONTROL</div>
-                <a href="${pageContext.request.contextPath}/admin/dashboard" class="nav-item-link"><i class="fa-solid fa-chart-pie w-20px text-center"></i> Overview</a>
-                <a href="${pageContext.request.contextPath}/admin/manage-categories" class="nav-item-link active"><i class="fa-solid fa-layer-group w-20px text-center"></i> Categories</a>
+                <a href="${pageContext.request.contextPath}/admin/dashboard" class="nav-item-link active"><i class="fa-solid fa-chart-pie w-20px text-center"></i> Overview</a>
+                <a href="${pageContext.request.contextPath}/admin/manage-categories" class="nav-item-link"><i class="fa-solid fa-layer-group w-20px text-center"></i> Categories</a>
                 <a href="${pageContext.request.contextPath}/admin/manage-courses" class="nav-item-link"><i class="fa-solid fa-video w-20px text-center"></i> All Courses</a>
                 <a href="${pageContext.request.contextPath}/admin/manage-users" class="nav-item-link"><i class="fa-solid fa-users-gear w-20px text-center"></i> User Management</a>
                 <a href="${pageContext.request.contextPath}/admin/manage-payments" class="nav-item-link"><i class="fa-solid fa-money-bill-transfer w-20px text-center"></i> Transactions</a>
                 <a href="${pageContext.request.contextPath}/admin/payout-requests" class="nav-item-link"><i class="fa-solid fa-building-columns w-20px text-center"></i> Payout Requests</a>
-                <a href="${pageContext.request.contextPath}/admin/manage-reviews" class="nav-item-link"><i class="fa-solid fa-star-half-stroke w-20px text-center"></i> Course Reviews</a>
                 <a href="${pageContext.request.contextPath}/admin/support-tickets" class="nav-item-link"><i class="fa-solid fa-headset w-20px text-center"></i> Support Desk</a>
                 <a href="${pageContext.request.contextPath}/admin/settings" class="nav-item-link"><i class="fa-solid fa-sliders w-20px text-center"></i> Settings</a>
                 <a href="${pageContext.request.contextPath}/auth/logout" class="nav-item-link logout"><i class="fa-solid fa-power-off w-20px text-center"></i> Secure Logout</a>
@@ -106,10 +99,17 @@
                         <h2 class="fw-bold m-0 text-white">Course Categories</h2>
                         <p class="text-dim m-0">Organize your platform's curriculum.</p>
                     </div>
-                    <button class="btn btn-primary rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#addCategoryModal">
+                    <button class="btn btn-primary rounded-pill px-4 fw-bold" data-bs-toggle="modal" data-bs-target="#addCategoryModal">
                         <i class="fa-solid fa-plus me-2"></i> Add New
                     </button>
                 </div>
+
+                <%-- Alerts --%>
+                <c:if test="${not empty successMsg}">
+                    <div class="alert alert-success bg-success bg-opacity-10 text-success border-0 rounded-4 mb-4">
+                        <i class="fa-solid fa-check-circle me-2"></i> ${successMsg}
+                    </div>
+                </c:if>
 
                 <div class="content-card">
                     <div class="table-responsive">
@@ -133,12 +133,12 @@
                                         </td>
                                         <td>
                                             <div class="category-desc text-truncate" style="max-width: 300px;">
-                                                <c:out value="${cat.description}" default="No description available."/>
+                                                <c:out value="${cat.description}" default="General category for various courses."/>
                                             </div>
                                         </td>
                                         <td>
                                             <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-2 py-1">
-                                                ${cat.courses != null ? cat.courses.size() : 0} Courses
+                                                ${not empty cat.courses ? cat.courses.size() : 0} Courses
                                             </span>
                                         </td>
                                         <td class="text-end">
@@ -146,9 +146,9 @@
                                                 <button class="action-btn edit" onclick="openEditModal(${cat.id}, '${cat.name}', '${cat.description}')">
                                                     <i class="fa-solid fa-pen-to-square"></i>
                                                 </button>
-                                                <form action="${pageContext.request.contextPath}/admin/categories/delete/${cat.id}" method="post" class="m-0">
+                                                <form action="${pageContext.request.contextPath}/admin/categories/delete/${cat.id}" method="post" class="m-0" onsubmit="return confirm('Deleting this category will affect linked courses. Continue?')">
                                                     <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
-                                                    <button type="submit" class="action-btn delete" onclick="return confirm('Delete category?')">
+                                                    <button type="submit" class="action-btn delete">
                                                         <i class="fa-solid fa-trash"></i>
                                                     </button>
                                                 </form>
@@ -165,48 +165,50 @@
     </div>
 </div>
 
-<div class="modal fade" id="addCategoryModal" tabindex="-1">
+<div class="modal fade" id="addCategoryModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header border-0 p-4 pb-0">
-                <h5 class="modal-title fw-bold">Create New Category</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold">Add New Category</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form action="${pageContext.request.contextPath}/admin/categories/add" method="post">
                 <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
-                <div class="modal-body p-4">
-                    <label class="custom-label">NAME</label>
-                    <input type="text" name="name" class="custom-input" placeholder="e.g. Data Science" required>
+                <div class="modal-body">
+                    <label class="custom-label">CATEGORY NAME</label>
+                    <input type="text" name="name" class="custom-input" placeholder="e.g. Web Development" required>
                     
                     <label class="custom-label">DESCRIPTION</label>
-                    <textarea name="description" class="custom-input" rows="3" placeholder="Brief details..."></textarea>
+                    <textarea name="description" class="custom-input" rows="3" placeholder="Briefly describe what courses fall under this category..."></textarea>
                 </div>
-                <div class="modal-footer border-0 p-4 pt-0">
-                    <button type="submit" class="btn btn-primary w-100 rounded-pill py-2 fw-bold">Add Category</button>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-link text-dim text-decoration-none" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary rounded-pill px-4">Create Category</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
 
-<div class="modal fade" id="editCategoryModal" tabindex="-1">
+<div class="modal fade" id="editCategoryModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header border-0 p-4 pb-0">
-                <h5 class="modal-title fw-bold">Edit Category</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold">Update Category</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form id="editForm" method="post">
+            <form id="editForm" action="" method="post">
                 <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
-                <div class="modal-body p-4">
-                    <label class="custom-label">NAME</label>
+                <div class="modal-body">
+                    <label class="custom-label">CATEGORY NAME</label>
                     <input type="text" name="name" id="editName" class="custom-input" required>
                     
                     <label class="custom-label">DESCRIPTION</label>
                     <textarea name="description" id="editDesc" class="custom-input" rows="3"></textarea>
                 </div>
-                <div class="modal-footer border-0 p-4 pt-0">
-                    <button type="submit" class="btn btn-emerald text-white w-100 rounded-pill py-2 fw-bold">Update Details</button>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-link text-dim text-decoration-none" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary rounded-pill px-4">Save Changes</button>
                 </div>
             </form>
         </div>
@@ -216,16 +218,15 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
     function openEditModal(id, name, desc) {
-        // Form field fill karein
+        // Populate fields
         document.getElementById('editName').value = name;
         document.getElementById('editDesc').value = (desc && desc !== 'null') ? desc : '';
         
-        // URL path update karein (Backend endpoint: /admin/categories/update/{id})
+        // Update form action with dynamic ID
         document.getElementById('editForm').action = '${pageContext.request.contextPath}/admin/categories/update/' + id;
         
-        // Modal ko manual show karein
-        var editModal = new bootstrap.Modal(document.getElementById('editCategoryModal'));
-        editModal.show();
+        // Trigger Modal
+        new bootstrap.Modal(document.getElementById('editCategoryModal')).show();
     }
 </script>
 </body>

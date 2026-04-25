@@ -57,7 +57,7 @@ public class SecurityConfig {
             .authenticationProvider(authenticationProvider())
             .authorizeHttpRequests(auth -> auth
                 // ✅ UPDATE: Added "/certificate/verify/**" to allow public verification
-                .requestMatchers("/", "/home", "/auth/**", "/testjsp", "/courses/**", "/certificate/verify/**").permitAll()
+                .requestMatchers("/", "/home", "/go-home", "/auth/**", "/testjsp", "/courses/**", "/certificate/verify/**").permitAll()
                 .requestMatchers("/perform_login").permitAll()
                 
                 .requestMatchers("/admin/**").hasRole("ADMIN")

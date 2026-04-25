@@ -1,7 +1,6 @@
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
 <%@ taglib prefix="fmt" uri="jakarta.tags.fmt" %>
-<c:set var="pageTitle" value="My Learning Library"/>
 <%@ include file="../common/header.jsp" %>
 
 <style>
@@ -89,7 +88,7 @@
             <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3 animate-fade-in">
                 <div>
                     <h1 class="display-6 fw-900 text-white mb-1">My Learning 📚</h1>
-                    <p class="text-dim fs-6 m-0">You have <b>${enrollments.size()}</b> active programs in your library</p>
+                    <p class="text-dim fs-6 m-0">You have <b><c:out value="${enrollments.size()}" default="0"/></b> active programs in your library</p>
                 </div>
                 <a href="${pageContext.request.contextPath}/courses" class="btn btn-primary rounded-pill px-4 py-2 fw-800 shadow-lg">
                     <i class="fa-solid fa-compass me-2"></i> Explore New
@@ -131,24 +130,22 @@
                                     </div>
 
                                     <div class="p-4 flex-grow-1 d-flex flex-column">
-                                        <div class="text-primary small fw-800 mb-2 text-uppercase" style="letter-spacing: 1px;">
-                                            ${e.course.category != null ? e.course.category.name : 'General'}
-                                        </div>
+                                        <div class="text-primary small fw-800 mb-2 text-uppercase" style="letter-spacing: 1px;"><c:out value="${e.course.category != null ? e.course.category.name : 'General'}"/></div>
                                         <h5 class="text-white fw-800 mb-3" style="line-height: 1.4; min-height: 42px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
-                                            ${e.course.title}
+                                            <c:out value="${e.course.title}"/>
                                         </h5>
                                         
                                         <div class="text-dim small mb-4">
-                                            <i class="fa-solid fa-chalkboard-user me-2"></i> ${e.course.instructor.fullName}
+                                            <i class="fa-solid fa-chalkboard-user me-2"></i> <c:out value="${e.course.instructor != null ? e.course.instructor.fullName : 'Instructor'}"/>
                                         </div>
 
                                         <div class="mt-auto">
                                             <div class="d-flex justify-content-between mb-2 small">
                                                 <span class="text-dim fw-600">Progress</span>
-                                                <span class="text-white fw-800">${e.progressPercent}%</span>
+                                                <span class="text-white fw-800"><c:out value="${e.progressPercent}" default="0"/>%</span>
                                             </div>
                                             <div class="progress-bar-wrap mb-4">
-                                                <div class="progress-fill ${e.progressPercent == 100 ? 'completed' : ''}" style="width: ${e.progressPercent}%"></div>
+                                                <div class="progress-fill ${e.progressPercent == 100 ? 'completed' : ''}" style="width: <c:out value="${e.progressPercent}" default="0"/>%"></div>
                                             </div>
 
                                             <div class="d-flex gap-2">

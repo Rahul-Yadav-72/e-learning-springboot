@@ -58,4 +58,9 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
     List<Course> searchByCategoryAndKeyword(
             @Param("categoryId") Long categoryId,
             @Param("keyword") String keyword);
+
+    @Query("SELECT c.category.id, COUNT(c) FROM Course c " +
+           "WHERE c.published = true AND c.approved = true AND c.category IS NOT NULL " +
+           "GROUP BY c.category.id")
+    List<Object[]> countPublishedApprovedCoursesByCategory();
 }

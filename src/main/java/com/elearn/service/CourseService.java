@@ -7,6 +7,8 @@ import com.elearn.model.User;
 import com.elearn.model.enums.CourseLevel;
 import com.elearn.repository.CategoryRepository;
 import com.elearn.repository.CourseRepository;
+import com.elearn.repository.EnrollmentRepository;
+import com.elearn.repository.ModuleRepository;
 import com.elearn.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -16,7 +18,9 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.*;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -89,18 +93,26 @@ public class CourseService {
         courseRepository.save(course);
     }
 
-    // ── Delete (Teacher Check) ──
+    // ── Delete (Teacher Check) ─
+    // Inside CourseService.java
     public void deleteCourse(Long courseId, User currentUser) {
         Course course = getCourseById(courseId);
+        
+        // Security Check: Ensure this teacher actually owns this course
         if (!course.getInstructor().getId().equals(currentUser.getId())) {
-            throw new RuntimeException("Aap sirf apna course delete kar sakte hain");
+            throw new RuntimeException("You do not have permission to delete this course as Student is enrolled in the course.");
         }
-        courseRepository.deleteById(courseId);
+        
+        // If you get a "Foreign Key Constraint" error, you might need to delete 
+        // enrollments or modules first, or use CascadeType.REMOVE in your Entity.
+        courseRepository.delete(course);
     }
-
+    
     public void deleteCourse(Long courseId) {
         courseRepository.deleteById(courseId);
     }
+    
+ 
 
     // ── Getters ──
     public List<Course> getCoursesByTeacher(User teacher) {
@@ -149,6 +161,15 @@ public class CourseService {
     }
 
     @Transactional(readOnly = true)
+    public Map<Long, Long> getPublishedApprovedCourseCountsByCategory() {
+        Map<Long, Long> counts = new HashMap<>();
+        for (Object[] row : courseRepository.countPublishedApprovedCoursesByCategory()) {
+            counts.put((Long) row[0], (Long) row[1]);
+        }
+        return counts;
+    }
+
+    @Transactional(readOnly = true)
     public List<Course> getCoursesByLevel(CourseLevel level) {
         return courseRepository.findByLevelAndPublishedTrueAndApprovedTrue(level);
     }
@@ -185,4 +206,16 @@ public class CourseService {
             throw new RuntimeException("File save nahi ho saka: " + e.getMessage());
         }
     }
+    
+ // Inside CourseService.java
+
+   
+    
+ // ── Admin: Get Every Course ──
+    @Transactional(readOnly = true)
+    public List<Course> getAllCourses() {
+        return courseRepository.findAll();
+    }
+    
+    
 }

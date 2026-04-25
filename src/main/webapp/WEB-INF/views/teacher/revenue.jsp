@@ -98,7 +98,7 @@
 <body>
 
 <nav class="portal-nav d-flex justify-content-between align-items-center">
-    <div class="d-flex align-items-center gap-2" onclick="location.href='${pageContext.request.contextPath}/teacher/dashboard'" style="cursor: pointer;">
+<div class="d-flex align-items-center gap-2" onclick="location.href='${pageContext.request.contextPath}/go-home'" style="cursor: pointer;">
         <div class="bg-primary p-2 rounded-3 text-white"><i class="fa-solid fa-graduation-cap"></i></div>
         <h4 class="m-0 fw-bold">E-Learn</h4>
     </div>
@@ -126,7 +126,6 @@
                 <div class="portal-label mb-3" style="font-size:0.65rem; color:var(--text-dim); font-weight:800;">MENU</div>
                 <a href="${pageContext.request.contextPath}/teacher/dashboard" class="nav-item-link"><i class="fa-solid fa-house"></i> Overview</a>
                 <a href="${pageContext.request.contextPath}/teacher/courses" class="nav-item-link"><i class="fa-solid fa-book-open"></i> My Courses</a>
-                <a href="${pageContext.request.contextPath}/teacher/assignments" class="nav-item-link"><i class="fa-solid fa-file-signature"></i> Assessments</a>
                 <a href="${pageContext.request.contextPath}/teacher/courses/students" class="nav-item-link"><i class="fa-solid fa-users"></i> Student List</a>
                 <a href="${pageContext.request.contextPath}/teacher/revenue" class="nav-item-link active"><i class="fa-solid fa-chart-line"></i> Analytics</a>
                 <a href="${pageContext.request.contextPath}/teacher/profile" class="nav-item-link"><i class="fa-solid fa-user-circle"></i> My Profile</a>
@@ -165,7 +164,7 @@
                             <span><i class="fa-solid fa-circle-check me-1"></i> Verified Payouts</span>
                         </div>
                     </div>
-                    <button class="btn-withdraw shadow">Request Payout <i class="fa-solid fa-paper-plane ms-2"></i></button>
+                    
                 </div>
 
                 <div class="history-card">

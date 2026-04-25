@@ -1,4 +1,5 @@
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
+<%@ taglib prefix="fn" uri="http://java.sun.com/jsp/jstl/functions" %>
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
 <%@ taglib prefix="fmt" uri="jakarta.tags.fmt" %>
 <c:set var="pageTitle" value="Learning: ${course.title}"/>
@@ -109,7 +110,30 @@
                     <div class="video-hero mb-4 shadow-lg">
                         <c:choose>
                             <c:when test="${not empty currentLesson.videoUrl}">
-                                <iframe src="${currentLesson.videoUrl}" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+                                <%-- MASTER FIX: YouTube Link Transformer --%>
+                                <c:set var="rawUrl" value="${currentLesson.videoUrl}" />
+                                <c:set var="finalUrl" value="${rawUrl}" />
+
+                                <c:choose>
+                                    <%-- Handle Standard watch?v= Links --%>
+                                    <c:when test="${fn:contains(rawUrl, 'watch?v=')}">
+                                        <c:set var="finalUrl" value="${fn:replace(rawUrl, 'www.youtube.com/watch?v=', 'www.youtube-nocookie.com/embed/')}" />
+                                        <%-- Ensure params like &t= work by replacing first & with ? --%>
+                                        <c:set var="finalUrl" value="${fn:replace(finalUrl, '&', '?')}" />
+                                    </c:when>
+
+                                    <%-- Handle youtu.be/ Short Links --%>
+                                    <c:when test="${fn:contains(rawUrl, 'youtu.be/')}">
+                                        <c:set var="finalUrl" value="${fn:replace(rawUrl, 'youtu.be/', 'www.youtube-nocookie.com/embed/')}" />
+                                    </c:when>
+                                    
+                                    <%-- Basic security for standard youtube domain links --%>
+                                    <c:when test="${fn:contains(rawUrl, 'youtube.com/watch?v=')}">
+                                         <c:set var="finalUrl" value="${fn:replace(rawUrl, 'youtube.com/watch?v=', 'youtube-nocookie.com/embed/')}" />
+                                    </c:when>
+                                </c:choose>
+                                
+                                <iframe src="${finalUrl}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
                             </c:when>
                             <c:otherwise>
                                 <div class="d-flex flex-column align-items-center justify-content-center h-100 text-center p-4">
@@ -145,7 +169,7 @@
                     </div>
                 </c:when>
 
-                <%-- ✅ CASE 2: Quiz Portal View (Optimized for Yadav Ji) --%>
+                <%-- ✅ CASE 2: Quiz Portal View --%>
                 <c:when test="${quizMode}">
                     <div class="glass-card p-5 mb-4 border-accent border-opacity-25 shadow-lg text-center">
                         <div class="bg-accent bg-opacity-10 p-4 rounded-circle text-accent d-inline-flex mb-4">
@@ -163,11 +187,7 @@
                                 <li>Once started, do not refresh the page.</li>
                                 <li>Score will be calculated automatically.</li>
                             </ul>
-                            <<%-- Button ka href aisa hona chahiye --%>
-<a href="${pageContext.request.contextPath}/student/quiz/${currentAssignment.id}" 
-   class="btn btn-primary">
-   Start Quiz
-</a>
+                            <a href="${pageContext.request.contextPath}/student/quiz/${currentAssignment.id}" class="btn btn-primary">Start Quiz</a>
                         </div>
                     </div>
                 </c:when>
@@ -176,19 +196,43 @@
                 <c:when test="${not empty currentAssignment}">
                     <div class="glass-card p-5 mb-4 border-warning border-opacity-25">
                         <h2 class="text-white fw-900 mb-4"><i class="fa-solid fa-file-pen text-warning me-3"></i>${currentAssignment.title}</h2>
-                        <div class="text-dim mb-5">${currentAssignment.description}</div>
+                        <div class="text-dim mb-5">
+                            <h6 class="text-white fw-800 mb-3">Questions</h6>
+                            ${currentAssignment.description}
+                        </div>
 
                         <div class="bg-dark bg-opacity-50 p-4 rounded-4 border border-white-50 border-opacity-10">
-                            <h6 class="text-white fw-800 mb-3">Submit Assignment</h6>
-                            <form action="${pageContext.request.contextPath}/student/assignment/submit" method="post" enctype="multipart/form-data">
-                                <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
-                                <input type="hidden" name="assignmentId" value="${currentAssignment.id}"/>
-                                <input type="hidden" name="courseId" value="${course.id}"/>
-                                <input type="file" name="file" class="form-control upload-input mb-3" required>
-                                <button type="submit" class="btn btn-warning rounded-pill px-4 fw-bold shadow-sm">
-                                    <i class="fa-solid fa-upload me-2"></i> Submit File
-                                </button>
-                            </form>
+                            <c:choose>
+                                <c:when test="${not empty existingSubmission}">
+                                    <h6 class="text-white fw-800 mb-3">Your Submission</h6>
+                                    <c:if test="${not empty existingSubmission.submissionText}">
+                                        <div class="p-3 rounded-4 mb-3" style="background: rgba(255,255,255,0.04); color: var(--text-dim);">
+                                            ${existingSubmission.submissionText}
+                                        </div>
+                                    </c:if>
+                                    <c:if test="${not empty existingSubmission.fileName}">
+                                        <div class="small text-white mb-3">
+                                            <i class="fa-solid fa-paperclip me-2 text-warning"></i>${existingSubmission.fileName}
+                                        </div>
+                                    </c:if>
+                                    <div class="small ${existingSubmission.graded ? 'text-success' : 'text-warning'}">
+                                        ${existingSubmission.graded ? 'Reviewed by instructor.' : 'Submitted and awaiting review.'}
+                                    </div>
+                                </c:when>
+                                <c:otherwise>
+                                    <h6 class="text-white fw-800 mb-3">Answer the Task</h6>
+                                    <form action="${pageContext.request.contextPath}/student/assignment/submit" method="post" enctype="multipart/form-data">
+                                        <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
+                                        <input type="hidden" name="assignmentId" value="${currentAssignment.id}"/>
+                                        <input type="hidden" name="courseId" value="${course.id}"/>
+                                        <textarea name="answerText" class="form-control upload-input mb-3" rows="6" placeholder="Write your answer and follow the teacher's questions and instructions here..."></textarea>
+                                        <input type="file" name="file" class="form-control upload-input mb-3">
+                                        <button type="submit" class="btn btn-warning rounded-pill px-4 fw-bold shadow-sm">
+                                            <i class="fa-solid fa-upload me-2"></i> Submit Answer
+                                        </button>
+                                    </form>
+                                </c:otherwise>
+                            </c:choose>
                         </div>
                     </div>
                 </c:when>
@@ -243,7 +287,7 @@
                                 <a href="${pageContext.request.contextPath}/student/learn/${course.id}?assignmentId=${assignment.id}" 
                                    class="lesson-nav-item ${currentAssignment.id == assignment.id ? 'active' : ''}">
                                     <c:choose>
-                                        <c:when test="${assignment.title.toLowerCase().contains('quiz')}">
+                                        <c:when test="${assignment.type == 'QUIZ'}">
                                             <i class="fa-solid fa-clipboard-question text-accent"></i>
                                             <span class="flex-grow-1 text-truncate">${assignment.title}</span>
                                             <span class="badge bg-accent bg-opacity-10 text-accent border border-accent border-opacity-25" style="font-size: 0.6rem;">QUIZ</span>

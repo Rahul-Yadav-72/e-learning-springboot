@@ -23,22 +23,37 @@ public class AssignmentService {
     private final EnrollmentRepository enrollmentRepository;
 
     /** ── 1. Create New Assignment ── */
-    public Assignment createAssignment(String title, String description, LocalDate dueDate,
-                                     Integer maxMarks, Long moduleId, String type) { 
+//    public Assignment createAssignment(String title, String description, LocalDate dueDate,
+//                                     Integer maxMarks, Long moduleId, String type) { 
+//        
+//        CourseModule module = moduleRepository.findById(moduleId)
+//                .orElseThrow(() -> new RuntimeException("Module not found"));
+//
+//        Assignment assignment = Assignment.builder()
+//                .title(title)
+//                .description(description)
+//                .dueDate(dueDate)
+//                .maxMarks(maxMarks)
+//                .module(module)
+//                .type(type)
+//                .build();
+//
+//        return assignmentRepository.save(assignment);
+//    }
+    
+ // Inside AssignmentService.java
+    public Assignment createAssignment(String title, String desc, LocalDate due, Integer marks, Long moduleId, String type) {
+        CourseModule module = moduleRepository.findById(moduleId).get();
         
-        CourseModule module = moduleRepository.findById(moduleId)
-                .orElseThrow(() -> new RuntimeException("Module not found"));
-
-        Assignment assignment = Assignment.builder()
-                .title(title)
-                .description(description)
-                .dueDate(dueDate)
-                .maxMarks(maxMarks)
-                .module(module)
-                .type(type)
-                .build();
-
-        return assignmentRepository.save(assignment);
+        Assignment asm = new Assignment();
+        asm.setTitle(title);
+        asm.setDescription(desc);
+        asm.setDueDate(due);
+        asm.setMaxMarks(marks);
+        asm.setModule(module);
+        asm.setType(type); // <--- THIS MUST BE SAVED
+        
+        return assignmentRepository.save(asm); // <--- MUST RETURN THE OBJECT
     }
     
     /** ── Assignment id se fetch karne ke liye method ── */
@@ -59,6 +74,17 @@ public class AssignmentService {
     }
     
     /** ── Student ke liye assignments fetch karne ka method ── */
+    public void updateAssignment(Long assignmentId, String title, String description, LocalDate dueDate, Integer maxMarks) {
+        Assignment assignment = getAssignmentById(assignmentId);
+        assignment.setTitle(title);
+        assignment.setDescription(description);
+        assignment.setDueDate(dueDate);
+        assignment.setMaxMarks(maxMarks);
+        assignmentRepository.save(assignment);
+    }
+    
+    
+
     @Transactional(readOnly = true)
     public List<Assignment> getAssignmentsForStudent(User student) {
         List<Course> enrolledCourses = enrollmentRepository.findByStudent(student)
@@ -113,6 +139,11 @@ public class AssignmentService {
         return submissionRepository.save(sub);
     }
 
+    @Transactional(readOnly = true)
+    public AssignmentSubmission getSubmissionByAssignmentAndStudent(Long assignmentId, Long studentId) {
+        return submissionRepository.findByAssignmentIdAndStudentId(assignmentId, studentId).orElse(null);
+    }
+
     /** ── 3. Teacher: Grade Submission ── */
     public void gradeSubmission(Long submissionId, int marks, String feedback) {
         AssignmentSubmission sub = submissionRepository.findById(submissionId)
@@ -133,6 +164,11 @@ public class AssignmentService {
     @Transactional(readOnly = true)
     public List<AssignmentSubmission> getSubmissionsByTeacher(User teacher) {
         return submissionRepository.findByAssignment_Module_Course_Instructor(teacher);
+    }
+
+    @Transactional(readOnly = true)
+    public List<AssignmentSubmission> getSubmissionsByAssignment(Long assignmentId) {
+        return submissionRepository.findByAssignmentId(assignmentId);
     }
 
     @Transactional(readOnly = true)

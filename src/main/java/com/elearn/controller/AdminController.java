@@ -69,15 +69,13 @@ public class AdminController {
         return "admin/manage-users";
     }
 
- // ── Fixed User Toggle Status Mapping (Just in case) ──
     @PostMapping("/users/{userId}/toggle-status")
     public String toggleUserStatus(@PathVariable Long userId, RedirectAttributes ra) {
         userService.toggleUserStatus(userId);
         ra.addFlashAttribute("successMsg", "User access updated!");
         return "redirect:/admin/manage-users";
     }
- // ── Fixed User Delete Mapping ──
-    // Mapping matches: /admin/users/{userId}/delete
+
     @PostMapping("/users/{userId}/delete")
     public String deleteUser(@PathVariable Long userId, RedirectAttributes ra) {
         userService.deleteUser(userId);
@@ -120,17 +118,19 @@ public class AdminController {
     // ── 4. Course Control ──
     @GetMapping("/manage-courses")
     public String manageCourses(@RequestParam(required = false) String filter, Model model) {
-        List<Course> courses = "pending".equals(filter) ? 
-                              courseService.getPendingApprovalCourses() : 
-                              courseService.getAllPublishedCourses();
+        List<Course> courses;
+        if ("pending".equals(filter)) {
+            courses = courseService.getPendingApprovalCourses();
+        } else if ("published".equals(filter)) {
+            courses = courseService.getAllPublishedCourses();
+        } else {
+            courses = courseService.getAllCourses(); 
+        }
         model.addAttribute("courses", courses);
         model.addAttribute("filter", filter);
         return "admin/manage-courses"; 
     }
 
- // ── Fixed Course Approve Mapping ──
-    
-    // Mapping matches: /admin/courses/{courseId}/approve
     @PostMapping("/courses/{courseId}/approve")
     public String approveCourse(@PathVariable Long courseId, RedirectAttributes ra) {
         courseService.approveCourse(courseId);
@@ -144,33 +144,34 @@ public class AdminController {
         ra.addFlashAttribute("successMsg", "Course removed.");
         return "redirect:/admin/manage-courses";
     }
-    
 
     // ── 5. Payouts, Reviews & Support ──
-//    @GetMapping("/payout-requests")
-//    public String payoutRequests(Model model) {
-//        model.addAttribute("payoutRequests", payoutService.getAllRequests());
-//        return "admin/payout-requests"; // <-- Ye line JSP file dhoondh rahi hai
-//    }
     @GetMapping("/payout-requests")
     public String payoutRequests(Model model) {
         List<PayoutRequest> requests = payoutService.getAllRequests();
-        
-        // Debugging ke liye: Console mein check karein data aa raha hai ya nahi
-        System.out.println("Total Payout Requests: " + requests.size());
-        
         model.addAttribute("payoutRequests", requests);
-        return "admin/payout-requests"; // Match with: /WEB-INF/views/admin/payout-requests.jsp
+        return "admin/payout-requests"; 
     }
 
-    @PostMapping("/payouts/{id}/approve") // ID ko beech mein rakhein
+    @PostMapping("/payouts/{id}/approve")
     public String approvePayout(@PathVariable Long id, RedirectAttributes ra) {
         payoutService.approvePayout(id);
         ra.addFlashAttribute("successMsg", "Payout marked as PAID.");
         return "redirect:/admin/payout-requests";
     }
 
-    /** ✅ FIX: manage-reviews mapping added to resolve 404 */
+    // FUNCTIONAL REJECT PAYOUT MAPPING
+    @PostMapping("/payouts/{id}/reject")
+    public String rejectPayout(@PathVariable Long id, RedirectAttributes ra) {
+        try {
+            payoutService.rejectPayout(id);
+            ra.addFlashAttribute("successMsg", "Payout request has been REJECTED.");
+        } catch (Exception e) {
+            ra.addFlashAttribute("errorMsg", "Failed to reject: " + e.getMessage());
+        }
+        return "redirect:/admin/payout-requests";
+    }
+
     @GetMapping("/manage-reviews")
     public String manageReviews(Model model) {
         model.addAttribute("reviews", reviewService.getAllReviews());
@@ -197,7 +198,6 @@ public class AdminController {
         return "admin/manage-payments";
     }
 
-    /** ✅ FIX: settings mapping added to resolve 404 */
     @GetMapping("/settings")
     public String settings(Model model) {
         model.addAttribute("pageTitle", "Platform Settings");
@@ -210,5 +210,4 @@ public class AdminController {
         model.addAttribute("user", admin);
         return "common/profile"; 
     }
-    
 }

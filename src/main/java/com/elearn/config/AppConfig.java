@@ -23,7 +23,7 @@ public class AppConfig implements WebMvcConfigurer {
     @Value("${app.certificate-dir:certificates/}")
     private String certificateDir;
     
- // ✅ JSP ViewResolver — MANUALLY define karo
+ // JSP ViewResolver — MANUALLY define karo
     @Bean
     public ViewResolver jspViewResolver() {
         InternalResourceViewResolver resolver =
@@ -38,7 +38,7 @@ public class AppConfig implements WebMvcConfigurer {
     public void addResourceHandlers(
             ResourceHandlerRegistry registry) {
 
-        // ✅ Static files — webapp/static/ se serve hoga
+        // Static files — webapp/static/ se serve hoga
         registry.addResourceHandler("/static/**")
                 .addResourceLocations("/static/");
 

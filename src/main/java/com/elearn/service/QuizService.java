@@ -23,6 +23,11 @@ public class QuizService {
         return quizRepo.findByAssignmentId(assignmentId);
     }
 
+    public QuizQuestion getQuestionById(Long questionId) {
+        return quizRepo.findById(questionId)
+                .orElseThrow(() -> new RuntimeException("Question not found"));
+    }
+
     // 2. Naya question directly database mein save karne ke liye
     public void addQuestion(Long assignmentId, String text, String a, String b, String c, String d, String correct, Integer marks) {
         Assignment assignment = assignmentRepo.findById(assignmentId)
@@ -45,5 +50,17 @@ public class QuizService {
     // 3. Question delete karne ke liye
     public void deleteQuestion(Long questionId) {
         quizRepo.deleteById(questionId);
+    }
+
+    public void updateQuestion(Long questionId, String text, String a, String b, String c, String d, String correct, Integer marks) {
+        QuizQuestion q = getQuestionById(questionId);
+        q.setQuestionText(text);
+        q.setOptionA(a);
+        q.setOptionB(b);
+        q.setOptionC(c);
+        q.setOptionD(d);
+        q.setCorrectOption(correct);
+        q.setMarks(marks);
+        quizRepo.save(q);
     }
 }

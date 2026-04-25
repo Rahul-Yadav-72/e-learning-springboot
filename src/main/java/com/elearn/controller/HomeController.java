@@ -6,6 +6,7 @@ import com.elearn.service.CategoryService;
 import com.elearn.service.CourseService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -42,11 +43,8 @@ public class HomeController {
             List<Course> allPublished = courseService.getAllPublishedCourses();
             popularCourses = allPublished.size() > 8 ? allPublished.subList(0, 8) : allPublished;
 
-            // Calculating Counts per Category
-            for (Category cat : categories) {
-                long count = courseService.getCoursesByCategory(cat.getId()).size();
-                categoryCourseCount.put(cat.getId(), count);
-            }
+            // Fetch all category counts in one grouped query instead of one query per category
+            categoryCourseCount = courseService.getPublishedApprovedCourseCountsByCategory();
 
         } catch (Exception e) {
             log.error("❌ Error loading homepage data: {}", e.getMessage());
@@ -71,6 +69,27 @@ public class HomeController {
     }
     
    
+
+    @GetMapping("/go-home")
+    public String goHome(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getName())) {
+            return "redirect:/auth/login";
+        }
+
+        if (authentication.getAuthorities().stream().anyMatch(auth -> "ROLE_ADMIN".equals(auth.getAuthority()))) {
+            return "redirect:/admin/dashboard";
+        }
+
+        if (authentication.getAuthorities().stream().anyMatch(auth -> "ROLE_TEACHER".equals(auth.getAuthority()))) {
+            return "redirect:/teacher/dashboard";
+        }
+
+        if (authentication.getAuthorities().stream().anyMatch(auth -> "ROLE_STUDENT".equals(auth.getAuthority()))) {
+            return "redirect:/student/dashboard";
+        }
+
+        return "redirect:/auth/login";
+    }
 
     @GetMapping("/access-denied")
     public String accessDenied() {

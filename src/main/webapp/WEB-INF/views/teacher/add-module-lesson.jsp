@@ -77,7 +77,7 @@
 <body>
 
 <nav class="portal-nav d-flex justify-content-between align-items-center">
-    <div class="d-flex align-items-center gap-2" onclick="location.href='${pageContext.request.contextPath}/teacher/dashboard'" style="cursor: pointer;">
+    <div class="d-flex align-items-center gap-2" onclick="location.href='${pageContext.request.contextPath}/go-home'" style="cursor: pointer;">
         <div class="bg-primary p-2 rounded-3 text-white"><i class="fa-solid fa-graduation-cap"></i></div>
         <h4 class="m-0 fw-bold text-white">E-Learn</h4>
     </div>
@@ -92,14 +92,16 @@
                 <div class="portal-label mb-3" style="font-size:0.65rem; color:var(--text-dim); font-weight:800;">MENU</div>
                 <a href="${pageContext.request.contextPath}/teacher/dashboard" class="nav-item-link"><i class="fa-solid fa-house"></i> Overview</a>
                 <a href="${pageContext.request.contextPath}/teacher/courses" class="nav-item-link active"><i class="fa-solid fa-book-open"></i> My Courses</a>
-                <a href="${pageContext.request.contextPath}/teacher/assignments" class="nav-item-link"><i class="fa-solid fa-file-signature"></i> Assessments</a>
                 <a href="${pageContext.request.contextPath}/teacher/courses/students" class="nav-item-link"><i class="fa-solid fa-users"></i> Student List</a>
                 <a href="${pageContext.request.contextPath}/teacher/revenue" class="nav-item-link"><i class="fa-solid fa-chart-line"></i> Analytics</a>
                 <a href="${pageContext.request.contextPath}/teacher/profile" class="nav-item-link"><i class="fa-solid fa-user-circle"></i> My Profile</a>
                 
-                <a href="${pageContext.request.contextPath}/auth/logout" class="nav-item-link logout">
-    <i class="fa-solid fa-right-from-bracket"></i> Sign Out
-</a>  
+                <form action="${pageContext.request.contextPath}/auth/logout" method="post" class="m-0">
+                    <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
+                    <button type="submit" class="nav-item-link logout border-0 w-100 text-start bg-transparent" style="cursor: pointer;">
+                        <i class="fa-solid fa-right-from-bracket"></i> Sign Out
+                    </button>
+                </form>
             </div>
         </div>
 
@@ -135,29 +137,28 @@
                             <h5 class="fw-bold m-0 text-white">${module.title}</h5>
                         </div>
                         <div class="d-flex gap-2 align-items-center">
-                            
-                            <%-- Add Assignment Button (Modal trigger) --%>
                             <button class="btn-add-assignment" onclick="openAssignmentModal(${module.id}, '${module.title}')">
                                 <i class="fa-solid fa-file-signature me-1"></i> Assignment
                             </button>
                             
-                            <%-- Add Lesson Button (Modal trigger) --%>
                             <button class="btn-add-lesson" onclick="openLessonModal(${module.id})">
                                 <i class="fa-solid fa-plus me-1"></i> Lesson
                             </button>
 
-                            <button class="btn btn-sm btn-outline-light border-0 opacity-50" onclick="openEditModuleModal(${module.id}, '${module.title}')">
+                            <button class="btn btn-sm btn-outline-light border-0 opacity-50"
+                                    onclick="openEditModuleModal('${module.id}', '<c:out value="${module.title}"/>')">
                                 <i class="fa-solid fa-pen"></i>
                             </button>
                             
                             <form action="${pageContext.request.contextPath}/teacher/modules/delete/${module.id}" method="post" onsubmit="return confirm('Delete module?')" style="display:inline;">
+                                <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
+                                <input type="hidden" name="courseId" value="${course.id}">
                                 <button type="submit" class="btn btn-sm btn-outline-danger border-0 opacity-50"><i class="fa-solid fa-trash"></i></button>
                             </form>
                         </div>
                     </div>
                     
                     <div class="module-content">
-                        <%-- 1. LOOP FOR LESSONS --%>
                         <c:forEach var="lesson" items="${module.lessons}">
                             <div class="item-row lesson-border">
                                 <div class="bg-primary bg-opacity-10 p-2 rounded-3 text-primary">
@@ -172,14 +173,22 @@
                                     </div>
                                 </div>
                                 <div class="actions">
-                                    <button class="btn btn-sm text-danger opacity-50 border-0" onclick="if(confirm('Delete lesson?')) location.href='${pageContext.request.contextPath}/teacher/lessons/delete/${lesson.id}?courseId=${course.id}'">
-                                        <i class="fa-solid fa-trash-can"></i>
+                                    <button class="btn btn-sm btn-outline-light border-0 opacity-50"
+                                            onclick="openEditLessonModal('${lesson.id}', '<c:out value="${lesson.title}"/>', '${lesson.durationMinutes}', '<c:out value="${lesson.videoUrl}"/>', '<c:out value="${lesson.content}"/>')">
+                                        <i class="fa-solid fa-pen"></i>
                                     </button>
+                                    <form action="${pageContext.request.contextPath}/teacher/lessons/delete/${lesson.id}" method="post" style="display:inline;">
+                                        <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
+                                        <input type="hidden" name="courseId" value="${course.id}"/>
+                                        <button type="submit" class="btn btn-sm text-danger opacity-50 border-0" 
+                                                onclick="return confirm('Delete lesson?')">
+                                            <i class="fa-solid fa-trash-can"></i>
+                                        </button>
+                                    </form>
                                 </div>
                             </div>
                         </c:forEach>
 
-                        <%-- 2. LOOP FOR ASSIGNMENTS --%>
                         <c:forEach var="asm" items="${module.assignments}">
                             <div class="item-row assignment-border">
                                 <div class="bg-warning bg-opacity-10 p-2 rounded-3 text-warning">
@@ -195,12 +204,22 @@
                                     </div>
                                 </div>
                                 <div class="actions d-flex gap-2">
-                                    <c:if test="${asm.type == 'QUIZ'}">
-                                        <a href="${pageContext.request.contextPath}/teacher/assignments/${asm.id}/questions" class="btn btn-sm text-info border-0" title="Edit Questions">
-                                            <i class="fa-solid fa-list-check"></i>
-                                        </a>
-                                    </c:if>
+                                    <a href="${pageContext.request.contextPath}/teacher/assignments/${asm.id}/view" class="btn btn-sm text-primary border-0" title="View Assessment">
+                                        <i class="fa-solid fa-eye"></i>
+                                    </a>
+                                    <button type="button"
+                                            class="btn btn-sm text-info border-0"
+                                            title="Edit Assessment"
+                                            data-assignment-id="${asm.id}"
+                                            data-assignment-title="<c:out value='${asm.title}'/>"
+                                            data-assignment-description="<c:out value='${asm.description}'/>"
+                                            data-assignment-due-date="${asm.dueDate}"
+                                            data-assignment-max-marks="${asm.maxMarks}"
+                                            onclick="openEditAssignmentModal(this)">
+                                        <i class="fa-solid fa-pen"></i>
+                                    </button>
                                     <form action="${pageContext.request.contextPath}/teacher/assignments/delete/${asm.id}" method="post" onsubmit="return confirm('Delete this assignment?')">
+                                         <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
                                          <button type="submit" class="btn btn-sm text-danger opacity-50 border-0"><i class="fa-solid fa-trash-can"></i></button>
                                     </form>
                                 </div>
@@ -213,10 +232,9 @@
                     </div>
                 </div>
             </c:forEach>
-            
-        </div> <%-- End of col-lg-9 (Right Content Area) --%>
-    </div> <%-- End of Row --%>
-</div> <%-- End of Container --%>
+        </div>
+    </div>
+</div>
 
 <%-- Add Module Modal --%>
 <div class="modal fade" id="addModuleModal" tabindex="-1">
@@ -225,6 +243,7 @@
             <div class="modal-body p-4">
                 <h5 class="fw-bold mb-4">New Module</h5>
                 <form action="${pageContext.request.contextPath}/teacher/courses/${course.id}/modules/add" method="post">
+                    <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
                     <label class="custom-label">Module Title</label>
                     <input type="text" name="title" class="custom-input" placeholder="e.g. Introduction to Variables" required>
                     <button type="submit" class="btn btn-primary w-100 py-2 fw-bold">Create Module</button>
@@ -234,13 +253,59 @@
     </div>
 </div>
 
-<%-- UPDATED ADD LESSON MODAL WITH FILE UPLOADS --%>
+<div class="modal fade" id="editModuleModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-body p-4">
+                <h5 class="fw-bold mb-4">Edit Module</h5>
+                <form id="editModuleForm" action="" method="post">
+                    <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
+                    <input type="hidden" name="courseId" value="${course.id}">
+                    <label class="custom-label">Module Title</label>
+                    <input type="text" name="title" id="editModuleTitle" class="custom-input" required>
+                    <button type="submit" class="btn btn-primary w-100 py-2 fw-bold">Update Module</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editLessonModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-body p-4">
+                <h5 class="fw-bold mb-4">Edit Lesson</h5>
+                <form id="editLessonForm" action="" method="post">
+                    <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
+                    <input type="hidden" name="courseId" value="${course.id}">
+                    <div class="row">
+                        <div class="col-md-9">
+                            <label class="custom-label">Lesson Title</label>
+                            <input type="text" name="title" id="editLessonTitle" class="custom-input" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="custom-label">Duration (Mins)</label>
+                            <input type="number" name="durationMinutes" id="editLessonDuration" class="custom-input" min="1" required>
+                        </div>
+                    </div>
+                    <label class="custom-label">Video Link</label>
+                    <input type="text" name="videoUrl" id="editLessonVideoUrl" class="custom-input" placeholder="Paste YouTube Link Here">
+                    <label class="custom-label">Text Description</label>
+                    <textarea name="content" id="editLessonContent" class="custom-input" style="height: 120px;"></textarea>
+                    <button type="submit" class="btn btn-primary w-100 py-2 fw-bold">Update Lesson</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="modal fade" id="addLessonModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
             <div class="modal-body p-4">
                 <h5 class="fw-bold mb-4">Add Lesson Content</h5>
                 <form id="lessonForm" action="" method="post" enctype="multipart/form-data">
+                    <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
                     <div class="row">
                         <div class="col-md-9">
                             <label class="custom-label">Lesson Title</label>
@@ -252,11 +317,10 @@
                         </div>
                     </div>
 
-                    <%-- Video Tabs --%>
                     <label class="custom-label mt-2">Video Content</label>
                     <ul class="nav nav-tabs" role="tablist">
-                        <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#videoLinkTab" type="button"><i class="fa-brands fa-youtube me-2"></i>Embed Link</button></li>
-                        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#videoFileTab" type="button"><i class="fa-solid fa-file-video me-2"></i>Upload MP4</button></li>
+                        <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#videoLinkTab" type="button">Embed Link</button></li>
+                        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#videoFileTab" type="button">Upload MP4</button></li>
                     </ul>
                     <div class="tab-content mb-3">
                         <div class="tab-pane fade show active" id="videoLinkTab">
@@ -267,31 +331,27 @@
                         </div>
                     </div>
 
-                    <%-- PDF Upload --%>
-                    <label class="custom-label">PDF Notes / Presentation</label>
+                    <label class="custom-label">PDF Notes</label>
                     <div class="pdf-upload-box" onclick="document.getElementById('pdfInput').click()">
                         <i class="fa-solid fa-file-pdf fa-2x text-emerald mb-2"></i>
                         <p class="m-0 small text-white fw-bold" id="pdfFileName">Click to Select PDF File</p>
-                        <p class="m-0 text-dim" style="font-size:0.7rem;">Optional (Max 10MB)</p>
                         <input type="file" name="pdfFile" id="pdfInput" class="d-none" accept=".pdf" onchange="updateFileName(this)">
                     </div>
 
                     <label class="custom-label">Text Description</label>
-                    <textarea name="content" class="custom-input" placeholder="Brief explanation of the lesson..." style="height: 100px;"></textarea>
+                    <textarea name="content" class="custom-input" style="height: 100px;"></textarea>
                     
-                    <%-- Fake Progress Bar that shows on upload --%>
                     <div class="progress upload-progress bg-dark">
                         <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-primary" style="width: 100%"></div>
                     </div>
 
-                    <button type="submit" class="btn btn-success w-100 py-3 fw-bold shadow-sm" onclick="showProgress()">Publish Lesson</button>
+                    <button type="submit" class="btn btn-success w-100 py-3 fw-bold" onclick="showProgress()">Publish Lesson</button>
                 </form>
             </div>
         </div>
     </div>
 </div>
 
-<%-- NAYA PREMIUM MODAL: ADD ASSIGNMENT --%>
 <div class="modal fade" id="addAssignmentModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
@@ -300,20 +360,33 @@
                 <p class="small text-dim mb-4 pb-3 border-bottom border-secondary border-opacity-25">Adding to Module: <span id="targetModuleTitle" class="text-warning fw-bold"></span></p>
                 
                 <form action="${pageContext.request.contextPath}/teacher/assignments/save" method="post">
+                    <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
                     <input type="hidden" name="moduleId" id="modalModuleId">
                     
                     <div class="row">
                         <div class="col-md-8">
                             <label class="custom-label">Assessment Title</label>
-                            <input type="text" name="title" class="custom-input" placeholder="e.g. Core Java Final Quiz" required>
+                            <input type="text" name="title" class="custom-input" placeholder="e.g. Final MCQ Exam" required>
                         </div>
                         <div class="col-md-4">
-                            <label class="custom-label">Assessment Type</label>
-                            <select name="type" class="custom-input" required>
-                                <option value="QUIZ">MCQ Quiz</option>
+                            <label class="custom-label" style="color: white !important;">Assessment Type</label>
+                            <select name="type" id="typeSelector" class="custom-input" style="color: black !important; background-color: white;" onchange="toggleAssignmentUI()" required>
                                 <option value="TASK">Writing Task</option>
+                                <option value="QUIZ">MCQ Quiz</option>
                             </select>
                         </div>
+                    </div>
+
+                    <div id="instructionArea">
+                        <label class="custom-label mt-2">Instructions / Description</label>
+                        <textarea name="description" class="custom-input" placeholder="Write instructions for the writing task..." style="height: 80px;"></textarea>
+                    </div>
+
+                    <div id="quizNotice" style="display: none;" class="p-3 rounded-4 mb-3 bg-primary bg-opacity-10 border border-primary border-opacity-25">
+                        <p class="m-0 small text-primary fw-bold">
+                            <i class="fa-solid fa-circle-info me-2"></i> 
+                            For MCQ Quizzes, you will add the questions and options on the next page after clicking Publish.
+                        </p>
                     </div>
 
                     <div class="row">
@@ -327,10 +400,7 @@
                         </div>
                     </div>
 
-                    <label class="custom-label mt-2">Instructions (Optional)</label>
-                    <textarea name="description" class="custom-input" placeholder="Any specific instructions for students..." style="height: 80px;"></textarea>
-
-                    <button type="submit" class="btn btn-warning w-100 py-3 fw-bold shadow-sm mt-3 text-dark">
+                    <button type="submit" class="btn btn-warning w-100 py-3 fw-bold mt-3 text-dark">
                         <i class="fa-solid fa-paper-plane me-2"></i>Publish Assessment
                     </button>
                 </form>
@@ -339,33 +409,92 @@
     </div>
 </div>
 
+<div class="modal fade" id="editAssignmentModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-body p-4">
+                <h5 class="fw-bold mb-4">Edit Assessment</h5>
+                <form id="editAssignmentForm" action="" method="post">
+                    <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
+                    <label class="custom-label">Assessment Title</label>
+                    <input type="text" name="title" id="editAssignmentTitle" class="custom-input" required>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label class="custom-label">Maximum Marks</label>
+                            <input type="number" name="maxMarks" id="editAssignmentMaxMarks" class="custom-input" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="custom-label">Due Date</label>
+                            <input type="date" name="dueDate" id="editAssignmentDueDate" class="custom-input" required>
+                        </div>
+                    </div>
+                    <label class="custom-label">Instructions</label>
+                    <textarea name="description" id="editAssignmentDescription" class="custom-input" style="height: 110px;"></textarea>
+                    <button type="submit" class="btn btn-primary w-100 py-2 fw-bold">Update Assessment</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-    // Open Assignment Modal
+    function toggleAssignmentUI() {
+        const type = document.getElementById('typeSelector').value;
+        const instructionArea = document.getElementById('instructionArea');
+        const quizNotice = document.getElementById('quizNotice');
+        
+        if(type === 'QUIZ') {
+            instructionArea.style.display = 'none';
+            quizNotice.style.display = 'block';
+        } else {
+            instructionArea.style.display = 'block';
+            quizNotice.style.display = 'none';
+        }
+    }
+
     function openAssignmentModal(moduleId, moduleTitle) {
         document.getElementById('modalModuleId').value = moduleId;
         document.getElementById('targetModuleTitle').innerText = moduleTitle;
         new bootstrap.Modal(document.getElementById('addAssignmentModal')).show();
     }
     
-    // Open Lesson Modal
     function openLessonModal(moduleId) {
         document.getElementById('lessonForm').action = '${pageContext.request.contextPath}/teacher/modules/' + moduleId + '/lessons/add';
         new bootstrap.Modal(document.getElementById('addLessonModal')).show();
     }
+
+    function openEditModuleModal(moduleId, title) {
+        document.getElementById('editModuleForm').action = '${pageContext.request.contextPath}/teacher/modules/update/' + moduleId;
+        document.getElementById('editModuleTitle').value = title;
+        new bootstrap.Modal(document.getElementById('editModuleModal')).show();
+    }
+
+    function openEditLessonModal(id, title, duration, video, content) {
+        document.getElementById('editLessonForm').action = '${pageContext.request.contextPath}/teacher/lessons/update/' + id;
+        document.getElementById('editLessonTitle').value = title;
+        document.getElementById('editLessonDuration').value = duration;
+        document.getElementById('editLessonVideoUrl').value = (video === 'null' || video === undefined) ? '' : video;
+        document.getElementById('editLessonContent').value = (content === 'null' || content === undefined) ? '' : content;
+        new bootstrap.Modal(document.getElementById('editLessonModal')).show();
+    }
+
+    function openEditAssignmentModal(button) {
+        document.getElementById('editAssignmentForm').action = '${pageContext.request.contextPath}/teacher/assignments/update/' + button.dataset.assignmentId;
+        document.getElementById('editAssignmentTitle').value = button.dataset.assignmentTitle;
+        document.getElementById('editAssignmentMaxMarks').value = button.dataset.assignmentMaxMarks;
+        document.getElementById('editAssignmentDueDate').value = button.dataset.assignmentDueDate;
+        document.getElementById('editAssignmentDescription').value = button.dataset.assignmentDescription;
+        new bootstrap.Modal(document.getElementById('editAssignmentModal')).show();
+    }
     
-    // Update PDF file name on selection
     function updateFileName(input) {
         document.getElementById('pdfFileName').innerText = input.files[0] ? input.files[0].name : "Click to Select PDF File";
     }
 
-    // Show moving progress bar on form submit if files are attached
     function showProgress() {
         const videoInput = document.querySelector('input[name="videoFile"]');
-        const pdfInput = document.querySelector('input[name="pdfFile"]');
-        if(videoInput.value || pdfInput.value) {
-            document.querySelector('.upload-progress').style.display = 'flex';
-        }
+        if(videoInput.value) { document.querySelector('.upload-progress').style.display = 'flex'; }
     }
 </script>
 </body>

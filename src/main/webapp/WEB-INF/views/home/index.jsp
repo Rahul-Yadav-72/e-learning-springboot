@@ -127,7 +127,7 @@
                 </c:when>
                 <c:otherwise>
                     <a href="${pageContext.request.contextPath}/auth/login" class="login-link">Login</a>
-                    <a href="${pageContext.request.contextPath}/auth/register" class="btn-join">Join Free</a>
+                    <a href="${pageContext.request.contextPath}/auth/register" class="btn-join">Register</a>
                 </c:otherwise>
             </c:choose>
         </div>

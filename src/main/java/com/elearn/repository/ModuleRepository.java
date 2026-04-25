@@ -16,7 +16,7 @@ public interface ModuleRepository
  // Ye method find karega: Module -> Course -> Instructor
     List<CourseModule> findByCourse_Instructor(User instructor);
     
-    ;
+    void deleteByCourseId(Long courseId);
 
     long countByCourseId(Long courseId);
 }

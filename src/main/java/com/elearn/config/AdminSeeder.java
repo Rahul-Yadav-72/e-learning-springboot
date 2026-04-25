@@ -19,7 +19,7 @@ public class AdminSeeder implements CommandLineRunner {
     public void run(String... args) throws Exception {
         String adminEmail = "ry1343655@gmail.com";
         
-        // Check karo ki kya ye specific email database mein hai?
+        
         User existingUser = userRepository.findByEmail(adminEmail).orElse(null);
         
         if (existingUser == null) {
@@ -34,7 +34,7 @@ public class AdminSeeder implements CommandLineRunner {
             userRepository.save(admin);
             System.out.println("✅ ADMIN ACCOUNT CREATED: " + adminEmail);
         } else {
-            // Agar user pehle se hai par Role ADMIN nahi hai, toh role update kar do
+            
             if (existingUser.getRole() != Role.ADMIN) {
                 existingUser.setRole(Role.ADMIN);
                 existingUser.setEnabled(true);

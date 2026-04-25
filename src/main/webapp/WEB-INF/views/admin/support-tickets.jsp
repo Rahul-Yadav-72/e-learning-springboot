@@ -81,7 +81,6 @@
                 <a href="${pageContext.request.contextPath}/admin/manage-users" class="nav-item-link"><i class="fa-solid fa-users-gear w-20px text-center"></i> User Management</a>
                 <a href="${pageContext.request.contextPath}/admin/manage-payments" class="nav-item-link"><i class="fa-solid fa-money-bill-transfer w-20px text-center"></i> Transactions</a>
                 <a href="${pageContext.request.contextPath}/admin/payout-requests" class="nav-item-link"><i class="fa-solid fa-building-columns w-20px text-center"></i> Payout Requests</a>
-                <a href="${pageContext.request.contextPath}/admin/manage-reviews" class="nav-item-link"><i class="fa-solid fa-star-half-stroke w-20px text-center"></i> Course Reviews</a>
                 <a href="${pageContext.request.contextPath}/admin/support-tickets" class="nav-item-link active"><i class="fa-solid fa-headset w-20px text-center"></i> Support Desk</a>
                 <a href="${pageContext.request.contextPath}/admin/settings" class="nav-item-link"><i class="fa-solid fa-sliders w-20px text-center"></i> Settings</a>
                 <a href="${pageContext.request.contextPath}/auth/logout" class="nav-item-link logout"><i class="fa-solid fa-power-off w-20px text-center"></i> Secure Logout</a>

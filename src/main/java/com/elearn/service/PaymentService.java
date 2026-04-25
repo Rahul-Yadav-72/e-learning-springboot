@@ -25,9 +25,6 @@ public class PaymentService {
     private final EnrollmentService enrollmentService;
     private final PayoutRequestRepository payoutRepository;
 
-    /**
-     * Student ke liye payment process initiate karna (Checkout ke waqt)
-     */
     public Payment initiatePayment(Long courseId, String userEmail) {
         log.info("Initiating payment for User: {} and Course: {}", userEmail, courseId);
         
@@ -48,9 +45,10 @@ public class PaymentService {
         return paymentRepository.save(payment);
     }
 
-    /**
-     * Razorpay se confirmation milne par payment aur payout process karna
-     */
+    public Payment processPayment(User user, PaymentDto dto) {
+        return confirmPayment(dto, user.getEmail());
+    }
+
     public Payment confirmPayment(PaymentDto dto, String userEmail) {
         log.info("Confirming payment from Razorpay for User: {}", userEmail);
         
@@ -59,7 +57,7 @@ public class PaymentService {
         Course course = courseRepository.findById(dto.getCourseId())
                 .orElseThrow(() -> new RuntimeException("Course not found"));
 
-        // 1. Payment record fetch karna ya naya banana
+        // ✅ FIX: Repository ke method ke hisaab se courseId pass kiya gaya hai
         Payment payment = paymentRepository
                 .findByUserAndCourseIdAndStatus(user, dto.getCourseId(), PaymentStatus.PENDING)
                 .orElseGet(() -> {
@@ -70,13 +68,13 @@ public class PaymentService {
                     return p;
                 });
 
-        // 2. Payment status success mark karna
         payment.setTransactionId(dto.getRazorpayPaymentId());
         payment.setPaymentMethod("RAZORPAY");
         payment.setStatus(PaymentStatus.COMPLETED);
         paymentRepository.save(payment);
 
-        // 3. ✅ TEACHER PAYOUT LOGIC: (Mapped to 'instructor' as per User Model)
+        // Payment successful hone par student ko enroll kar do
+     // 3. ✅ TEACHER PAYOUT LOGIC: (Mapped to 'instructor' as per User Model)
 
         BigDecimal totalAmount = payment.getAmount();
         BigDecimal teacherShare = totalAmount.multiply(new BigDecimal("0.8")); 
@@ -90,21 +88,12 @@ public class PaymentService {
         payout.setCourse(course); 
         
         payoutRepository.save(payout);
-
-        // 4. Student enrollment process
         enrollmentService.enrollStudent(user.getId(), dto.getCourseId());
         log.info("User {} successfully enrolled in Course {}", userEmail, course.getTitle());
 
         return payment;
     }
- // PaymentService.java ke andar ye method add karein
-    public Payment processPayment(User user, PaymentDto dto) {
-        return confirmPayment(dto, user.getEmail());
-    }
 
-    /**
-     * Free course ke liye direct enrollment
-     */
     public void enrollFree(Long courseId, String userEmail) {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -116,12 +105,12 @@ public class PaymentService {
         }
         
         enrollmentService.enrollStudent(user.getId(), courseId);
+        log.info("User {} enrolled in free Course {}", userEmail, course.getTitle());
     }
-
-    // --- Analytics & Admin Methods ---
 
     @Transactional(readOnly = true)
     public List<Payment> getTeacherPayments(User teacher) {
+        // ✅ FIX: Repository ke custom query method ke hisaab se change kiya
         return paymentRepository.findByTeacherId(teacher.getId());
     }
 
@@ -137,7 +126,7 @@ public class PaymentService {
     }
 
     @Transactional(readOnly = true)
-    public BigDecimal getTotalPlatformRevenue() {
+    public BigDecimal getTotalRevenue() {
         BigDecimal revenue = paymentRepository.calculateTotalRevenue();
         return revenue != null ? revenue : BigDecimal.ZERO;
     }
@@ -145,5 +134,12 @@ public class PaymentService {
     @Transactional(readOnly = true)
     public List<Object[]> getMonthlyRevenue(int year) {
         return paymentRepository.getMonthlyRevenue(year);
+    }
+    
+    @Transactional(readOnly = true)
+    public BigDecimal getTotalPlatformRevenue() {
+        // Ye method wahi kaam karega jo 'getTotalRevenue' kar raha tha
+        BigDecimal revenue = paymentRepository.calculateTotalRevenue();
+        return revenue != null ? revenue : BigDecimal.ZERO;
     }
 }

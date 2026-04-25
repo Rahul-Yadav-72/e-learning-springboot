@@ -77,7 +77,7 @@
 <body>
 
 <nav class="portal-nav d-flex justify-content-between align-items-center">
-    <div class="d-flex align-items-center gap-2" onclick="location.href='${pageContext.request.contextPath}/teacher/dashboard'" style="cursor: pointer;">
+<div class="d-flex align-items-center gap-2" onclick="location.href='${pageContext.request.contextPath}/go-home'" style="cursor: pointer;">
         <div class="bg-primary p-2 rounded-3 text-white"><i class="fa-solid fa-graduation-cap"></i></div>
         <h4 class="m-0 fw-bold">E-Learn</h4>
     </div>
@@ -98,28 +98,7 @@
 
 <div class="container-fluid px-lg-5 px-3">
     <div class="row g-4 mt-2">
-        <div class="col-lg-3">
-            <div class="sidebar shadow-sm">
-                <div class="portal-label mb-3" style="font-size:0.65rem; color:var(--text-dim); font-weight:800;">MENU</div>
-                <a href="${pageContext.request.contextPath}/teacher/dashboard" class="nav-item-link active"><i class="fa-solid fa-house"></i> Overview</a>
-                <a href="${pageContext.request.contextPath}/teacher/courses" class="nav-item-link"><i class="fa-solid fa-book-open"></i> My Courses</a>
-                
-                <%-- Added Assessment Center Link --%>
-                <a href="${pageContext.request.contextPath}/teacher/assignments" class="nav-item-link"><i class="fa-solid fa-file-signature"></i> Assessments</a>
-                
-                <%-- Updated Student List Link to match your folder structure --%>
-                <a href="${pageContext.request.contextPath}/teacher/courses/students" class="nav-item-link"><i class="fa-solid fa-users"></i> Student List</a>
-                
-                <%-- Updated Revenue Link to match your folder structure --%>
-                <a href="${pageContext.request.contextPath}/teacher/revenue" class="nav-item-link"><i class="fa-solid fa-chart-line"></i> Analytics</a>
-                
-                <a href="${pageContext.request.contextPath}/teacher/profile" class="nav-item-link"><i class="fa-solid fa-user-circle"></i> My Profile</a>
-                
-                <a href="${pageContext.request.contextPath}/auth/logout" class="nav-item-link logout">
-    <i class="fa-solid fa-right-from-bracket"></i> Sign Out
-</a>  
-            </div>
-        </div>
+        
 
 <div class="container-fluid review-container">
     
@@ -132,10 +111,10 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h3 class="fw-bold m-0">Review Submissions</h3>
-            <p class="text-dim m-0 small">Evaluate student assignments and provide feedback</p>
+            <p class="text-dim m-0 small">Evaluate responses for <span class="text-white">${assignment.title}</span></p>
         </div>
-        <a href="${pageContext.request.contextPath}/teacher/dashboard" class="btn btn-outline-secondary btn-sm rounded-pill px-4">
-            <i class="fa-solid fa-arrow-left me-1"></i> Dashboard
+        <a href="${pageContext.request.contextPath}/teacher/assignments/${assignment.id}/view" class="btn btn-outline-secondary btn-sm rounded-pill px-4">
+            <i class="fa-solid fa-arrow-left me-1"></i> Assessment View
         </a>
     </div>
 
@@ -164,18 +143,22 @@
                         </div>
                         <div>
                             <div class="fw-bold text-white"><c:out value="${sub.student.fullName}" default="Unknown Student"/></div>
-                            <div class="small text-dim">Assignment: <span class="text-white opacity-75"><c:out value="${sub.assignment.title}"/></span></div>
-                            <c:if test="${sub.graded}">
-                                <div class="badge bg-success bg-opacity-10 text-success mt-1" style="font-size: 0.65rem;">
+                        <div class="small text-dim">Assignment: <span class="text-white opacity-75"><c:out value="${sub.assignment.title}"/></span></div>
+                        <c:if test="${not empty sub.submissionText}">
+                            <div class="small text-dim mt-2">Answer:</div>
+                            <div class="small text-white opacity-75 mt-1" style="max-width: 440px; white-space: pre-wrap;"><c:out value="${sub.submissionText}"/></div>
+                        </c:if>
+                        <c:if test="${sub.graded}">
+                            <div class="badge bg-success bg-opacity-10 text-success mt-1" style="font-size: 0.65rem;">
                                     GRADED: ${sub.marksObtained} / ${sub.assignment.maxMarks}
-                                </div>
-                            </c:if>
+                            </div>
+                        </c:if>
                         </div>
                     </div>
                     
                     <div class="text-end d-flex align-items-center gap-2">
-                        <c:if test="${not empty sub.fileUrl}">
-                            <a href="${sub.fileUrl}" class="btn-download" target="_blank">
+                        <c:if test="${not empty sub.fileName}">
+                            <a href="${pageContext.request.contextPath}/teacher/submissions/${sub.id}/download" class="btn-download">
                                 <i class="fa-solid fa-file-pdf"></i> View
                             </a>
                         </c:if>

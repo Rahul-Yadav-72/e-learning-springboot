@@ -100,7 +100,7 @@
     <div class="container-fluid d-flex align-items-center justify-content-between px-lg-5">
         
         <div class="d-flex align-items-center gap-4">
-            <a href="${pageContext.request.contextPath}/" class="text-decoration-none d-flex align-items-center gap-3">
+            <a href="${pageContext.request.contextPath}/go-home" class="text-decoration-none d-flex align-items-center gap-3">
                 <div class="nav-brand-icon"><i class="fa-solid fa-graduation-cap"></i></div>
                 <span class="fw-900 fs-4 text-white" style="letter-spacing: -1px;">E-<span style="color: var(--warning)">LEARN</span></span>
             </a>

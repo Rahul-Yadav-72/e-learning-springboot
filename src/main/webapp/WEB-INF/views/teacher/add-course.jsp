@@ -91,7 +91,7 @@
 <body>
 
 <nav class="portal-nav d-flex justify-content-between align-items-center">
-    <div class="d-flex align-items-center gap-2" onclick="location.href='${pageContext.request.contextPath}/teacher/dashboard'" style="cursor: pointer;">
+    <div class="d-flex align-items-center gap-2" onclick="location.href='${pageContext.request.contextPath}/go-home'" style="cursor: pointer;">
         <div class="bg-primary p-2 rounded-3 text-white"><i class="fa-solid fa-graduation-cap"></i></div>
         <h4 class="m-0 fw-bold text-white">E-Learn</h4>
     </div>
@@ -119,14 +119,14 @@
                         <input type="text" name="title" class="custom-input" placeholder="e.g. Master Spring Boot 3.0 & Microservices" required>
                     </div>
                     <div class="col-md-4">
-                        <label class="custom-label">Category</label>
-                        <select name="categoryId" class="custom-input" required>
-                            <option value="" disabled selected>Select Category</option>
-                            <c:forEach var="cat" items="${categories}">
-                                <option value="${cat.id}">${cat.name}</option>
-                            </c:forEach>
-                        </select>
-                    </div>
+    <label class="custom-label">Category</label>
+    <select name="categoryId" class="custom-input">
+        <option value="" disabled selected style="color: white;">Select Category</option>
+        <c:forEach var="cat" items="${categories}">
+            <option value="${cat.id}" style="color: black;">${cat.name}</option>
+        </c:forEach>
+    </select>
+</div>
                 </div>
 
                 <div class="mb-5">
@@ -143,14 +143,7 @@
                         <label class="custom-label">Discount Price (INR)</label>
                         <input type="number" name="discountPrice" class="custom-input" placeholder="e.g. 499" min="0">
                     </div>
-                    <div class="col-md-4">
-                        <label class="custom-label">Target Difficulty</label>
-                        <select name="level" class="custom-input">
-                            <option value="BEGINNER">Beginner (No experience)</option>
-                            <option value="INTERMEDIATE">Intermediate (Some basics)</option>
-                            <option value="ADVANCED">Advanced (Expert level)</option>
-                        </select>
-                    </div>
+                    
                 </div>
 
                 <div class="mb-5">

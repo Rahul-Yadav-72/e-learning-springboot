@@ -55,6 +55,13 @@ public class LessonService {
 
         lessonRepository.save(lesson);
     }
+    
+    public String sanitizeYoutubeUrl(String url) {
+        if (url != null && url.contains("watch?v=")) {
+            return url.replace("watch?v=", "embed/");
+        }
+        return url;
+    }
 
     /**
      * DTO based lesson creation (Standard)
@@ -116,7 +123,23 @@ public class LessonService {
         return lessonRepository.findAllByCourseId(courseId);
     }
 
+    public void updateLesson(Long lessonId, String title, Integer durationMinutes, String content, String videoUrl) {
+        Lesson lesson = lessonRepository.findById(lessonId)
+                .orElseThrow(() -> new RuntimeException("Lesson not found"));
+
+        lesson.setTitle(title);
+        lesson.setDurationMinutes(durationMinutes);
+        lesson.setContent(content);
+        lesson.setVideoUrl(videoUrl);
+
+        lessonRepository.save(lesson);
+    }
+
     public void deleteLesson(Long id) {
-        lessonRepository.deleteById(id);
+        if (lessonRepository.existsById(id)) {
+            lessonRepository.deleteById(id);
+        } else {
+            throw new RuntimeException("Lesson not found with ID: " + id);
+        }
     }
 }

@@ -12,11 +12,13 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 
 import java.math.BigDecimal;
-import java.security.Principal;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.Map;
 
 @Controller
 @RequestMapping("/teacher")
@@ -39,17 +41,20 @@ public class TeacherController {
         return userService.getUserByEmail(ud.getUsername());
     }
 
-    // ── 1. Dashboard & Analytics ──
     @GetMapping("/dashboard")
     public String dashboard(@AuthenticationPrincipal UserDetails ud, Model model) {
         User teacher = getCurrentUser(ud);
         List<Course> courses = courseService.getCoursesByTeacher(teacher);
+        List<Course> activeCourses = courses.stream()
+                .filter(Course::isApproved)
+                .toList();
         long totalStudents = enrollmentService.getTotalStudentsForTeacher(teacher.getId());
         BigDecimal earnings = paymentService.getTeacherEarnings(teacher);
 
         model.addAttribute("teacher", teacher);
         model.addAttribute("courses", courses);
-        model.addAttribute("totalCourses", courses.size());
+        model.addAttribute("activeCourses", activeCourses);
+        model.addAttribute("totalCourses", activeCourses.size());
         model.addAttribute("totalStudents", totalStudents);
         model.addAttribute("earnings", (earnings != null) ? earnings : BigDecimal.ZERO);
         model.addAttribute("pageTitle", "Instructor Dashboard");
@@ -92,6 +97,37 @@ public class TeacherController {
         model.addAttribute("categories", categoryService.getAllCategories());
         return "teacher/add-course";
     }
+    
+    // FUNCTIONAL DELETE COURSE
+    @PostMapping("/courses/delete/{courseId}")
+    public String deleteCourse(@PathVariable Long courseId, @AuthenticationPrincipal UserDetails ud, RedirectAttributes ra) {
+        try {
+            User teacher = getCurrentUser(ud);
+            
+            // This calls your CourseService
+            courseService.deleteCourse(courseId, teacher);
+            
+            ra.addFlashAttribute("successMsg", "Course deleted successfully!");
+        } catch (Exception e) {
+            // Convert error to string to check for the Database Constraint
+            String errorMessage = e.getMessage() != null ? e.getMessage() : "";
+            
+            // If the error involves foreign keys (like the payments error you received)
+            if (errorMessage.contains("foreign key constraint fails") || errorMessage.contains("ConstraintViolationException")) {
+                ra.addFlashAttribute("errorMsg", "You cannot delete this course as student is enrolled in this course");
+            } 
+            // Or if your Service throws the manual ownership error you wrote
+            else if (errorMessage.contains("You do not have permission to delete this course")) {
+                ra.addFlashAttribute("errorMsg", "You cannot delete this course as student is enrolled in this course");
+            }
+            else {
+                ra.addFlashAttribute("errorMsg", "Delete Failed: You cannot delete this course as student is enrolled in this course");
+            }
+            
+            e.printStackTrace(); 
+        }
+        return "redirect:/teacher/courses";
+    }
 
     // ── 3. Curriculum (Modules & Lessons) ──
     @GetMapping("/courses/{courseId}/modules")
@@ -127,27 +163,9 @@ public class TeacherController {
             return "redirect:/teacher/courses/" + moduleId + "/modules";
         }
     }
-    
-    @PostMapping("/modules/update/{moduleId}")
-    public String updateModule(@PathVariable Long moduleId, 
-                               @RequestParam String title, 
-                               @RequestParam Long courseId, 
-                               RedirectAttributes ra) {
-        try {
-            moduleService.updateModule(moduleId, title);
-            ra.addFlashAttribute("successMsg", "Module title updated successfully!");
-        } catch (Exception e) {
-            ra.addFlashAttribute("errorMsg", "Update failed: " + e.getMessage());
-        }
-        // Wapas usi course ke modules page par bhejna zaroori hai
-        return "redirect:/teacher/courses/" + courseId + "/modules";
-    }
 
-    // ── Delete Module (Optional but Recommended) ──
     @PostMapping("/modules/delete/{moduleId}")
-    public String deleteModule(@PathVariable Long moduleId, 
-                               @RequestParam Long courseId, 
-                               RedirectAttributes ra) {
+    public String deleteModule(@PathVariable Long moduleId, @RequestParam Long courseId, RedirectAttributes ra) {
         try {
             moduleService.deleteModule(moduleId);
             ra.addFlashAttribute("successMsg", "Module removed successfully.");
@@ -157,7 +175,41 @@ public class TeacherController {
         return "redirect:/teacher/courses/" + courseId + "/modules";
     }
 
-    // ── 4. Assessments & Quiz Builder ──
+    @PostMapping("/modules/update/{moduleId}")
+    public String updateModule(@PathVariable Long moduleId, @RequestParam Long courseId, @RequestParam String title, RedirectAttributes ra) {
+        try {
+            moduleService.updateModule(moduleId, title);
+            ra.addFlashAttribute("successMsg", "Module updated successfully.");
+        } catch (Exception e) {
+            ra.addFlashAttribute("errorMsg", "Update failed: " + e.getMessage());
+        }
+        return "redirect:/teacher/courses/" + courseId + "/modules";
+    }
+
+    @PostMapping("/lessons/update/{lessonId}")
+    public String updateLesson(@PathVariable Long lessonId, @RequestParam Long courseId, @RequestParam String title, 
+                               @RequestParam Integer durationMinutes, @RequestParam(required = false) String content,
+                               @RequestParam(required = false) String videoUrl, RedirectAttributes ra) {
+        try {
+            lessonService.updateLesson(lessonId, title, durationMinutes, content, videoUrl);
+            ra.addFlashAttribute("successMsg", "Lesson updated successfully.");
+        } catch (Exception e) {
+            ra.addFlashAttribute("errorMsg", "Lesson update failed: " + e.getMessage());
+        }
+        return "redirect:/teacher/courses/" + courseId + "/modules";
+    }
+
+    @PostMapping("/lessons/delete/{lessonId}")
+    public String deleteLesson(@PathVariable Long lessonId, @RequestParam Long courseId, RedirectAttributes ra) {
+        try {
+            lessonService.deleteLesson(lessonId);
+            ra.addFlashAttribute("successMsg", "Lesson deleted successfully!");
+        } catch (Exception e) {
+            ra.addFlashAttribute("errorMsg", "Failed to delete lesson: " + e.getMessage());
+        }
+        return "redirect:/teacher/courses/" + courseId + "/modules";
+    }
+
     @GetMapping("/assignments")
     public String showAssignmentsCenter(@AuthenticationPrincipal UserDetails ud, Model model) {
         User teacher = getCurrentUser(ud);
@@ -173,20 +225,45 @@ public class TeacherController {
                                  @RequestParam Integer maxMarks, @RequestParam String dueDate,
                                  @RequestParam(required = false) String description, RedirectAttributes ra) {
         try {
-            Assignment savedAssignment = assignmentService.createAssignment(title, description, java.time.LocalDate.parse(dueDate), maxMarks, moduleId, type);
-            ra.addFlashAttribute("successMsg", "Published successfully!");
-            if ("QUIZ".equalsIgnoreCase(type)) return "redirect:/teacher/assignments/" + savedAssignment.getId() + "/questions";
+            Assignment savedAsm = assignmentService.createAssignment(title, description, java.time.LocalDate.parse(dueDate), maxMarks, moduleId, type);
+            if ("QUIZ".equalsIgnoreCase(type.trim())) {
+                ra.addFlashAttribute("successMsg", "Quiz details saved. Now add your questions!");
+                return "redirect:/teacher/assignments/" + savedAsm.getId() + "/questions";
+            } else {
+                ra.addFlashAttribute("successMsg", "Writing Task published successfully.");
+                return "redirect:/teacher/courses/" + savedAsm.getModule().getCourse().getId() + "/modules";
+            }
         } catch (Exception e) {
-            ra.addFlashAttribute("errorMsg", "Failed: " + e.getMessage());
+            ra.addFlashAttribute("errorMsg", "Failed to create assessment: " + e.getMessage());
+            return "redirect:/teacher/dashboard"; 
         }
-        return "redirect:/teacher/assignments"; 
     }
 
     @GetMapping("/assignments/{assignmentId}/questions")
     public String showQuizBuilder(@PathVariable Long assignmentId, Model model) {
-        model.addAttribute("assignment", assignmentService.getAssignmentById(assignmentId));
+        Assignment assignment = assignmentService.getAssignmentById(assignmentId);
+        model.addAttribute("assignment", assignment);
         model.addAttribute("questions", quizService.getQuestionsByAssignment(assignmentId));
         return "teacher/quiz-builder"; 
+    }
+
+    @GetMapping("/assignments/{assignmentId}/view")
+    public String viewAssignment(@PathVariable Long assignmentId, @AuthenticationPrincipal UserDetails ud, Model model) {
+        Assignment assignment = assignmentService.getAssignmentById(assignmentId);
+        model.addAttribute("teacher", getCurrentUser(ud));
+        model.addAttribute("assignment", assignment);
+        model.addAttribute("questions", quizService.getQuestionsByAssignment(assignmentId));
+        model.addAttribute("submissions", assignmentService.getSubmissionsByAssignment(assignmentId));
+        return "teacher/assignment-view";
+    }
+
+    @GetMapping("/assignments/{assignmentId}/review")
+    public String reviewAssignment(@PathVariable Long assignmentId, @AuthenticationPrincipal UserDetails ud, Model model) {
+        Assignment assignment = assignmentService.getAssignmentById(assignmentId);
+        model.addAttribute("teacher", getCurrentUser(ud));
+        model.addAttribute("assignment", assignment);
+        model.addAttribute("submissions", assignmentService.getSubmissionsByAssignment(assignmentId));
+        return "teacher/review-assignments";
     }
 
     @PostMapping("/assignments/{assignmentId}/questions/add")
@@ -203,48 +280,86 @@ public class TeacherController {
         return "redirect:/teacher/assignments/" + assignmentId + "/questions";
     }
 
-    // ── 5. Revenue & Payments ──
+    @PostMapping("/assignments/{assignmentId}/questions/update/{questionId}")
+    public String updateQuizQuestion(@PathVariable Long assignmentId, @PathVariable Long questionId,
+                                     @RequestParam String questionText, @RequestParam String optionA,
+                                     @RequestParam String optionB, @RequestParam String optionC,
+                                     @RequestParam String optionD, @RequestParam String correctOption,
+                                     @RequestParam Integer marks, RedirectAttributes ra) {
+        try {
+            quizService.updateQuestion(questionId, questionText, optionA, optionB, optionC, optionD, correctOption, marks);
+            ra.addFlashAttribute("successMsg", "Question updated successfully.");
+        } catch (Exception e) {
+            ra.addFlashAttribute("errorMsg", "Question update failed: " + e.getMessage());
+        }
+        return "redirect:/teacher/assignments/" + assignmentId + "/questions";
+    }
+
+    @PostMapping("/assignments/update/{assignmentId}")
+    public String updateAssignment(@PathVariable Long assignmentId, @RequestParam String title,
+                                   @RequestParam(required = false) String description, @RequestParam String dueDate,
+                                   @RequestParam Integer maxMarks, RedirectAttributes ra) {
+        try {
+            Assignment assignment = assignmentService.getAssignmentById(assignmentId);
+            assignmentService.updateAssignment(assignmentId, title, description, java.time.LocalDate.parse(dueDate), maxMarks);
+            ra.addFlashAttribute("successMsg", "Assessment updated successfully.");
+            return "redirect:/teacher/courses/" + assignment.getModule().getCourse().getId() + "/modules";
+        } catch (Exception e) {
+            ra.addFlashAttribute("errorMsg", "Assessment update failed: " + e.getMessage());
+            return "redirect:/teacher/assignments/" + assignmentId + "/view";
+        }
+    }
+
+    @PostMapping("/assignments/{assignmentId}/questions/delete/{questionId}")
+    public String deleteQuizQuestion(@PathVariable Long assignmentId, @PathVariable Long questionId, RedirectAttributes ra) {
+        try {
+            quizService.deleteQuestion(questionId);
+            ra.addFlashAttribute("successMsg", "Question deleted successfully.");
+        } catch (Exception e) {
+            ra.addFlashAttribute("errorMsg", "Question delete failed: " + e.getMessage());
+        }
+        return "redirect:/teacher/assignments/" + assignmentId + "/questions";
+    }
+
+    @GetMapping("/submissions/{submissionId}/download")
+    public ResponseEntity<byte[]> downloadSubmission(@PathVariable Long submissionId) {
+        AssignmentSubmission submission = assignmentService.findById(submissionId);
+        if (submission.getFileData() == null || submission.getFileData().length == 0) {
+            throw new RuntimeException("No file attached to this submission.");
+        }
+        String fileName = submission.getFileName() != null ? submission.getFileName() : "submission.bin";
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + new String(fileName.getBytes(StandardCharsets.UTF_8), StandardCharsets.ISO_8859_1) + "\"")
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .body(submission.getFileData());
+    }
+
     @GetMapping({"/earnings", "/revenue"})   
     public String detailedEarnings(@AuthenticationPrincipal UserDetails ud, Model model) {
         User teacher = getCurrentUser(ud);
         BigDecimal totalEarnings = paymentService.getTeacherEarnings(teacher);
-        
         model.addAttribute("transactions", paymentService.getTeacherPayments(teacher));
         model.addAttribute("totalEarnings", (totalEarnings != null) ? totalEarnings : BigDecimal.ZERO);
         model.addAttribute("pageTitle", "Revenue"); 
-        
         return "teacher/revenue"; 
     }
-// ── 6. Grading & Students ──
-    
-    /**
-     * Shows the list of all students enrolled in the teacher's courses.
-     * Maps to: /teacher/courses/students
-     */
+
     @GetMapping("/courses/students")
     public String viewAllStudents(@AuthenticationPrincipal UserDetails ud, Model model) {
         User teacher = getCurrentUser(ud);
-        
-        // Fetch enrollments for all courses owned by this teacher
         List<Enrollment> enrollments = enrollmentService.getEnrollmentsByTeacher(teacher);
-        
         model.addAttribute("enrollments", enrollments);
         model.addAttribute("totalStudents", enrollments.size());
-        model.addAttribute("pageTitle", "Manage Students"); // Sidebar active state ke liye
-        
-        return "teacher/enrolled-students"; // Ensure kijiye ki 'enrolled-students.jsp' file hai
+        model.addAttribute("pageTitle", "Manage Students"); 
+        return "teacher/enrolled-students";
     }
     
     @PostMapping("/assignments/delete/{assignmentId}")
     public String deleteAssignment(@PathVariable Long assignmentId, RedirectAttributes ra) {
         try {
-            // Assessment fetch karna taaki courseId mil sake redirect ke liye
             Assignment assignment = assignmentService.getAssignmentById(assignmentId);
             Long courseId = assignment.getModule().getCourse().getId();
-            
-            // Delete logic
             assignmentService.deleteAssignment(assignmentId);
-            
             ra.addFlashAttribute("successMsg", "Assessment deleted successfully.");
             return "redirect:/teacher/courses/" + courseId + "/modules";
         } catch (Exception e) {
@@ -254,16 +369,13 @@ public class TeacherController {
     }
 
     @PostMapping("/assignments/grade/{submissionId}")
-    public String gradeAssignment(@PathVariable Long submissionId, 
-                                 @RequestParam int marks, 
-                                 @RequestParam String feedback, 
-                                 RedirectAttributes ra) {
+    public String gradeAssignment(@PathVariable Long submissionId, @RequestParam int marks, @RequestParam String feedback, RedirectAttributes ra) {
+        AssignmentSubmission submission = assignmentService.findById(submissionId);
         assignmentService.gradeSubmission(submissionId, marks, feedback);
         ra.addFlashAttribute("successMsg", "Student graded successfully!");
-        return "redirect:/teacher/assignments";
+        return "redirect:/teacher/assignments/" + submission.getAssignment().getId() + "/review";
     }
 
-    // ── 6. Profile Management ──
     @GetMapping("/profile")
     public String profilePage(@AuthenticationPrincipal UserDetails ud, Model model) {
         model.addAttribute("teacher", getCurrentUser(ud));
@@ -272,12 +384,9 @@ public class TeacherController {
     }
 
     @PostMapping("/profile/update")
-    public String updateProfile(@AuthenticationPrincipal UserDetails ud, 
-                                @RequestParam String fullName,
-                                @RequestParam(required = false) String bio, 
-                                @RequestParam(required = false) String phone,
-                                @RequestParam(required = false) MultipartFile profileImage,
-                                RedirectAttributes ra) {
+    public String updateProfile(@AuthenticationPrincipal UserDetails ud, @RequestParam String fullName,
+                                @RequestParam(required = false) String bio, @RequestParam(required = false) String phone,
+                                @RequestParam(required = false) MultipartFile profileImage, RedirectAttributes ra) {
         try {
             User teacher = getCurrentUser(ud);
             userService.updateProfile(teacher.getId(), fullName, bio, phone, profileImage);

@@ -45,6 +45,7 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
     List<Enrollment> findByCourse_Instructor(User instructor);
 
     // ── Custom Count Queries (JPQL) ──
+    void deleteByCourseId(Long courseId);
 
     // Teacher ke saare courses mein total kitne students hain
     @Query("SELECT COUNT(e) FROM Enrollment e WHERE e.course.instructor.id = :teacherId")

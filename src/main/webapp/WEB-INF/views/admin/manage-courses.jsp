@@ -1,6 +1,7 @@
 <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
 <%@ taglib prefix="fmt" uri="jakarta.tags.fmt" %>
+<%@ taglib prefix="fn" uri="jakarta.tags.functions" %>
 
 <!DOCTYPE html>
 <html lang="en">
@@ -40,17 +41,18 @@
         .filter-tab:hover { color: white; background: rgba(255,255,255,0.05); }
         .filter-tab.active { background: var(--primary); color: white; }
 
-        /* --- UI FIX: Readable Table --- */
+        /* --- UI Fix: Table Rows --- */
         .custom-table { border-collapse: separate; border-spacing: 0 10px; margin-bottom: 0;}
         .custom-table thead th { border: none; color: var(--text-dim); font-size: 0.75rem; text-transform: uppercase; padding: 0 15px 15px; }
         
+        /* Fixed: Keeping your white row design but ensuring internal text is dark enough to read */
         .custom-table tbody tr { background: white !important; transition: 0.3s; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
         .custom-table td { border: none; padding: 15px; vertical-align: middle; color: #1e293b; }
         .custom-table td:first-child { border-radius: 12px 0 0 12px; }
         .custom-table td:last-child { border-radius: 0 12px 12px 0; }
 
-        .course-title { color: #1e293b !important; font-weight: 800; font-size: 0.95rem; }
-        .instructor-name { color: #4f46e5 !important; font-weight: 700; font-size: 0.85rem; }
+        .course-title { color: #0f172a !important; font-weight: 800; font-size: 0.95rem; line-height: 1.2; }
+        .instructor-name { color: #4338ca !important; font-weight: 700; font-size: 0.85rem; }
         .instructor-email { color: #64748b; font-size: 0.75rem; }
 
         .course-thumb { width: 60px; height: 45px; border-radius: 8px; object-fit: cover; background: #f1f5f9; border: 1px solid #e2e8f0; }
@@ -78,16 +80,21 @@
         <div class="col-lg-3">
             <div class="sidebar shadow-sm">
                 <div class="portal-label mb-3" style="font-size:0.65rem; color:var(--text-dim); font-weight:800;">MASTER CONTROL</div>
-                <a href="${pageContext.request.contextPath}/admin/dashboard" class="nav-item-link"><i class="fa-solid fa-chart-pie w-20px text-center"></i> Overview</a>
+                <a href="${pageContext.request.contextPath}/admin/dashboard" class="nav-item-link active"><i class="fa-solid fa-chart-pie w-20px text-center"></i> Overview</a>
                 <a href="${pageContext.request.contextPath}/admin/manage-categories" class="nav-item-link"><i class="fa-solid fa-layer-group w-20px text-center"></i> Categories</a>
-                <a href="${pageContext.request.contextPath}/admin/manage-courses" class="nav-item-link active"><i class="fa-solid fa-video w-20px text-center"></i> All Courses</a>
+                <a href="${pageContext.request.contextPath}/admin/manage-courses" class="nav-item-link"><i class="fa-solid fa-video w-20px text-center"></i> All Courses</a>
                 <a href="${pageContext.request.contextPath}/admin/manage-users" class="nav-item-link"><i class="fa-solid fa-users-gear w-20px text-center"></i> User Management</a>
                 <a href="${pageContext.request.contextPath}/admin/manage-payments" class="nav-item-link"><i class="fa-solid fa-money-bill-transfer w-20px text-center"></i> Transactions</a>
                 <a href="${pageContext.request.contextPath}/admin/payout-requests" class="nav-item-link"><i class="fa-solid fa-building-columns w-20px text-center"></i> Payout Requests</a>
-                <a href="${pageContext.request.contextPath}/admin/manage-reviews" class="nav-item-link"><i class="fa-solid fa-star-half-stroke w-20px text-center"></i> Course Reviews</a>
                 <a href="${pageContext.request.contextPath}/admin/support-tickets" class="nav-item-link"><i class="fa-solid fa-headset w-20px text-center"></i> Support Desk</a>
                 <a href="${pageContext.request.contextPath}/admin/settings" class="nav-item-link"><i class="fa-solid fa-sliders w-20px text-center"></i> Settings</a>
-                <a href="${pageContext.request.contextPath}/auth/logout" class="nav-item-link logout"><i class="fa-solid fa-power-off w-20px text-center"></i> Secure Logout</a>
+            
+                <form action="${pageContext.request.contextPath}/auth/logout" method="post" class="m-0">
+                    <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
+                    <button type="submit" class="nav-item-link logout border-0 bg-transparent w-100 text-start">
+                        <i class="fa-solid fa-power-off w-20px text-center"></i> Secure Logout
+                    </button>
+                </form>
             </div>
         </div>
 
@@ -95,7 +102,7 @@
             <div class="main-content">
                 <div class="mb-4">
                     <h2 class="fw-bold m-0 text-white">Course Repository</h2>
-                    <p class="text-dim m-0">Approve and monitor course content.</p>
+                    <p class="text-dim m-0">Review, approve, or manage platform content.</p>
                 </div>
 
                 <c:if test="${not empty successMsg}">
@@ -106,8 +113,13 @@
 
                 <div class="content-card">
                     <div class="filter-tabs">
-                        <a href="${pageContext.request.contextPath}/admin/manage-courses" class="filter-tab ${empty filter ? 'active' : ''}">Published</a>
-                        <a href="${pageContext.request.contextPath}/admin/manage-courses?filter=pending" class="filter-tab ${filter == 'pending' ? 'active' : ''}">Pending Approval</a>
+                        <a href="${pageContext.request.contextPath}/admin/manage-courses" 
+                           class="filter-tab ${empty filter ? 'active' : ''}">All Courses</a>
+                        
+                        
+                        
+                        <a href="${pageContext.request.contextPath}/admin/manage-courses?filter=pending" 
+                           class="filter-tab ${filter == 'pending' ? 'active' : ''}">Pending Approval</a>
                     </div>
 
                     <div class="table-responsive">
@@ -136,7 +148,7 @@
                                                 </c:choose>
                                                 <div>
                                                     <div class="course-title text-truncate" style="max-width: 200px;">${course.title}</div>
-                                                    <span class="badge bg-light text-dark small" style="font-size: 0.65rem;">${course.category.name}</span>
+                                                    <span class="badge bg-light text-secondary border mt-1" style="font-size: 0.65rem;">${course.category.name}</span>
                                                 </div>
                                             </div>
                                         </td>
@@ -150,18 +162,21 @@
                                             <div class="fw-bold" style="color: #059669;">
                                                 <c:choose>
                                                     <c:when test="${course.price > 0}">₹${course.price}</c:when>
-                                                    <c:otherwise>FREE</c:otherwise>
+                                                    <c:otherwise><span class="text-primary">FREE</span></c:otherwise>
                                                 </c:choose>
                                             </div>
                                         </td>
 
                                         <td>
                                             <c:choose>
-                                                <c:when test="${course.published}">
+                                                <c:when test="${course.approved && course.published}">
                                                     <span class="badge bg-success bg-opacity-10 text-success px-2 py-1 border border-success border-opacity-25">LIVE</span>
                                                 </c:when>
+                                                <c:when test="${not course.approved}">
+                                                    <span class="badge bg-warning bg-opacity-10 text-warning px-2 py-1 border border-warning border-opacity-25">NEEDS APPROVAL</span>
+                                                </c:when>
                                                 <c:otherwise>
-                                                    <span class="badge bg-warning bg-opacity-10 text-warning px-2 py-1 border border-warning border-opacity-25">PENDING</span>
+                                                    <span class="badge bg-info bg-opacity-10 text-info px-2 py-1 border border-info border-opacity-25">DRAFT</span>
                                                 </c:otherwise>
                                             </c:choose>
                                         </td>
@@ -170,14 +185,28 @@
                                             <div class="d-flex gap-2 justify-content-end align-items-center">
                                                 <c:if test="${not course.approved}">
                                                     <form action="${pageContext.request.contextPath}/admin/courses/${course.id}/approve" method="post" class="m-0">
+                                                        <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
                                                         <button type="submit" class="action-btn approve">Approve</button>
                                                     </form>
                                                 </c:if>
-                                                <button class="action-btn delete"><i class="fa-solid fa-trash-can"></i></button>
+                                                
+                                                <form action="${pageContext.request.contextPath}/admin/courses/delete/${course.id}" method="post" class="m-0" onsubmit="return confirm('Permanent delete this course?')">
+                                                    <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
+                                                    <button type="submit" class="action-btn delete">
+                                                        <i class="fa-solid fa-trash-can"></i>
+                                                    </button>
+                                                </form>
                                             </div>
                                         </td>
                                     </tr>
                                 </c:forEach>
+                                <c:if test="${empty courses}">
+                                    <tr>
+                                        <td colspan="5" class="text-center py-5">
+                                            <div class="text-muted small">No courses found matching this criteria.</div>
+                                        </td>
+                                    </tr>
+                                </c:if>
                             </tbody>
                         </table>
                     </div>

@@ -23,7 +23,7 @@ public class CustomAuthSuccessHandler implements AuthenticationSuccessHandler {
         Collection<? extends GrantedAuthority> authorities = authentication.getAuthorities();
         String redirectUrl = null;
 
-        // Role check logic
+        
         for (GrantedAuthority authority : authorities) {
             String role = authority.getAuthority();
 
@@ -39,12 +39,12 @@ public class CustomAuthSuccessHandler implements AuthenticationSuccessHandler {
             }
         }
 
-        // Agar koi valid role nahi mila toh default home par bhej do
+        
         if (redirectUrl == null) {
             redirectUrl = "/home";
         }
 
-        // Redirection execute karo
+        
         response.sendRedirect(request.getContextPath() + redirectUrl);
     }
 }

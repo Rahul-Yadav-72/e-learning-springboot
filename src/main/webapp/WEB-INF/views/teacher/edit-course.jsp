@@ -48,7 +48,7 @@
 <body>
 
 <nav class="portal-nav d-flex justify-content-between align-items-center">
-    <div class="d-flex align-items-center gap-2" onclick="location.href='${pageContext.request.contextPath}/teacher/dashboard'" style="cursor: pointer;">
+<div class="d-flex align-items-center gap-2" onclick="location.href='${pageContext.request.contextPath}/go-home'" style="cursor: pointer;">
         <div class="bg-primary p-2 rounded-3 text-white"><i class="fa-solid fa-graduation-cap"></i></div>
         <h4 class="m-0 fw-bold">E-Learn</h4>
     </div>
